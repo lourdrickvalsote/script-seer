@@ -62,7 +62,23 @@ struct ScriptDetailView: View {
                 // Actions
                 VStack(spacing: SSSpacing.sm) {
                     SSButton("Start Prompting", icon: "play.fill", variant: .primary) {}
-                    SSButton("Edit Script", icon: "pencil", variant: .secondary) {}
+                    NavigationLink(destination: ScriptEditorView(script: script)) {
+                        HStack(spacing: SSSpacing.xs) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("Edit Script")
+                                .font(SSTypography.headline)
+                        }
+                        .foregroundStyle(SSColors.accent)
+                        .padding(.horizontal, SSSpacing.lg)
+                        .padding(.vertical, SSSpacing.sm)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: SSRadius.md)
+                                .fill(SSColors.accentSubtle)
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, SSSpacing.md)
             }
