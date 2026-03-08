@@ -9,6 +9,7 @@ struct ScriptEditorView: View {
     @State private var showVariantSheet = false
     @State private var showAIActions = false
     @State private var showVariantBrowser = false
+    @State private var showReflowConfirm = false
     @FocusState private var editorFocused: Bool
 
     var body: some View {
@@ -53,6 +54,10 @@ struct ScriptEditorView: View {
                         Label("View Variants", systemImage: "list.bullet.rectangle")
                     }
                     Divider()
+                    Button(action: { showReflowConfirm = true }) {
+                        Label("Reflow for Prompter", systemImage: "text.line.first.and.arrowtriangle.forward")
+                    }
+                    Divider()
                     Button(action: { showFormattingBar.toggle() }) {
                         Label(
                             showFormattingBar ? "Hide Toolbar" : "Show Toolbar",
@@ -76,6 +81,17 @@ struct ScriptEditorView: View {
         .sheet(isPresented: $showVariantBrowser) {
             VariantBrowser(script: script)
                 .presentationDetents([.large])
+        }
+        .alert("Reflow Script", isPresented: $showReflowConfirm) {
+            Button("Reflow") {
+                let reflowed = ReadabilityEngine.reflow(script.content)
+                script.updateContent(reflowed)
+                SSHaptics.success()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            let preview = ReadabilityEngine.previewReflow(script.content)
+            Text("Reformat text into ~\(preview.lineCount) lines optimized for teleprompter reading. This modifies the script content.")
         }
         .onAppear {
             editorFocused = true
