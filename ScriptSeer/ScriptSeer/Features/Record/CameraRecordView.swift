@@ -8,6 +8,9 @@ struct CameraRecordView: View {
     @State private var countdownValue = 3
     @State private var showCountdown = false
     @State private var timer: Timer?
+    @State private var recordingDuration: TimeInterval = 0
+    @State private var showExitConfirmation = false
+    @State private var showSettings = false
 
     init(script: Script) {
         self.script = script
@@ -31,10 +34,25 @@ struct CameraRecordView: View {
                 countdownOverlay
             }
 
+            // Take saved banner
+            if cameraService.recordingState == .saved {
+                takeSavedOverlay
+            }
+
             // Controls
             VStack {
+                // Top bar: timer + take counter
+                if cameraService.recordingState == .recording || cameraService.recordingState == .paused {
+                    topRecordingBar
+                }
+
                 Spacer()
                 controlBar
+            }
+
+            // Settings panel
+            if showSettings {
+                settingsPanel
             }
         }
         .onAppear {
@@ -42,7 +60,7 @@ struct CameraRecordView: View {
             cameraService.startSession()
         }
         .onDisappear {
-            if case .recording = cameraService.recordingState {
+            if cameraService.recordingState == .recording || cameraService.recordingState == .paused {
                 cameraService.stopRecording()
             }
             cameraService.stopSession()
@@ -50,6 +68,49 @@ struct CameraRecordView: View {
         }
         .navigationBarBackButtonHidden(true)
         .statusBarHidden(true)
+        .confirmationDialog("Exit Recording?", isPresented: $showExitConfirmation) {
+            Button("Exit", role: .destructive) {
+                stopTimer()
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    // MARK: - Top Recording Bar
+
+    private var topRecordingBar: some View {
+        HStack {
+            // Recording indicator
+            HStack(spacing: SSSpacing.xs) {
+                Circle()
+                    .fill(cameraService.recordingState == .paused ? SSColors.slate : SSColors.recordingRed)
+                    .frame(width: 10, height: 10)
+
+                Text(formattedDuration)
+                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, SSSpacing.sm)
+            .padding(.vertical, SSSpacing.xxs)
+            .background(.black.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
+
+            Spacer()
+
+            // Take counter
+            if cameraService.takeCount > 0 {
+                Text("Take \(cameraService.takeCount + 1)")
+                    .font(SSTypography.caption)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, SSSpacing.sm)
+                    .padding(.vertical, SSSpacing.xxs)
+                    .background(.black.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
+            }
+        }
+        .padding(.horizontal, SSSpacing.md)
+        .padding(.top, 60)
     }
 
     // MARK: - Script Overlay
@@ -69,7 +130,7 @@ struct CameraRecordView: View {
                     RoundedRectangle(cornerRadius: SSRadius.md)
                         .fill(.black.opacity(0.5))
                 )
-                .padding(.top, 60)
+                .padding(.top, cameraService.recordingState == .recording || cameraService.recordingState == .paused ? 100 : 60)
                 .padding(.horizontal, SSSpacing.md)
 
             Spacer()
@@ -111,12 +172,67 @@ struct CameraRecordView: View {
         }
     }
 
+    // MARK: - Take Saved
+
+    private var takeSavedOverlay: some View {
+        VStack {
+            Spacer()
+
+            VStack(spacing: SSSpacing.md) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.green)
+
+                Text("Take \(cameraService.takeCount) Saved")
+                    .font(SSTypography.headline)
+                    .foregroundStyle(.white)
+
+                HStack(spacing: SSSpacing.md) {
+                    Button(action: {
+                        cameraService.resetForNewTake()
+                        promptSession.scrollOffset = 0
+                    }) {
+                        Label("New Take", systemImage: "arrow.counterclockwise")
+                            .font(SSTypography.subheadline)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, SSSpacing.md)
+                            .padding(.vertical, SSSpacing.sm)
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+                    }
+
+                    Button(action: { dismiss() }) {
+                        Label("Done", systemImage: "checkmark")
+                            .font(SSTypography.subheadline)
+                            .foregroundStyle(SSColors.lavenderMist)
+                            .padding(.horizontal, SSSpacing.md)
+                            .padding(.vertical, SSSpacing.sm)
+                            .background(SSColors.accent)
+                            .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+                    }
+                }
+            }
+            .padding(SSSpacing.lg)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: SSRadius.xl))
+            .padding(.horizontal, SSSpacing.lg)
+
+            Spacer()
+        }
+    }
+
     // MARK: - Controls
 
     private var controlBar: some View {
         HStack(spacing: SSSpacing.xl) {
             // Exit
-            Button(action: { dismiss() }) {
+            Button(action: {
+                if cameraService.recordingState == .recording || cameraService.recordingState == .paused {
+                    showExitConfirmation = true
+                } else {
+                    dismiss()
+                }
+            }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(.white)
@@ -125,14 +241,26 @@ struct CameraRecordView: View {
                     .clipShape(Circle())
             }
 
-            // Record button
+            // Pause / Resume (only while recording)
+            if cameraService.recordingState == .recording || cameraService.recordingState == .paused {
+                Button(action: togglePauseResume) {
+                    Image(systemName: cameraService.recordingState == .paused ? "play.fill" : "pause.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
+            }
+
+            // Record / Stop button
             Button(action: toggleRecording) {
                 ZStack {
                     Circle()
                         .stroke(.white, lineWidth: 3)
                         .frame(width: 72, height: 72)
 
-                    if case .recording = cameraService.recordingState {
+                    if cameraService.recordingState == .recording || cameraService.recordingState == .paused {
                         RoundedRectangle(cornerRadius: 4)
                             .fill(SSColors.recordingRed)
                             .frame(width: 28, height: 28)
@@ -144,39 +272,136 @@ struct CameraRecordView: View {
                 }
             }
 
-            // Switch camera
-            Button(action: {
-                cameraService.switchCamera()
-                SSHaptics.light()
-            }) {
-                Image(systemName: "camera.rotate")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
+            // Switch camera (not during recording)
+            if cameraService.recordingState != .recording && cameraService.recordingState != .paused {
+                Button(action: {
+                    cameraService.switchCamera()
+                    SSHaptics.light()
+                }) {
+                    Image(systemName: "camera.rotate")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
+            }
+
+            // Settings (not during recording)
+            if cameraService.recordingState == .idle {
+                Button(action: {
+                    withAnimation(SSAnimation.standard) {
+                        showSettings.toggle()
+                    }
+                }) {
+                    Image(systemName: "gear")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
             }
         }
         .padding(.bottom, SSSpacing.xl)
+    }
+
+    // MARK: - Settings Panel
+
+    private var settingsPanel: some View {
+        VStack {
+            Spacer()
+
+            VStack(spacing: SSSpacing.md) {
+                Text("Recording Settings")
+                    .font(SSTypography.headline)
+                    .foregroundStyle(.white)
+
+                // Resolution picker
+                VStack(alignment: .leading, spacing: SSSpacing.xs) {
+                    Text("Resolution")
+                        .font(SSTypography.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+
+                    Picker("Resolution", selection: Binding(
+                        get: { cameraService.resolution },
+                        set: { cameraService.setResolution($0) }
+                    )) {
+                        ForEach(VideoResolution.allCases, id: \.self) { res in
+                            Text(res.rawValue).tag(res)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                // Camera position
+                VStack(alignment: .leading, spacing: SSSpacing.xs) {
+                    Text("Camera")
+                        .font(SSTypography.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+
+                    Picker("Camera", selection: Binding(
+                        get: { cameraService.currentPosition == .front },
+                        set: { _ in cameraService.switchCamera() }
+                    )) {
+                        Text("Front").tag(true)
+                        Text("Back").tag(false)
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Button("Done") {
+                    withAnimation(SSAnimation.standard) {
+                        showSettings = false
+                    }
+                }
+                .foregroundStyle(SSColors.accent)
+            }
+            .padding(SSSpacing.lg)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: SSRadius.xl))
+            .padding(.horizontal, SSSpacing.md)
+            .padding(.bottom, 120)
+        }
     }
 
     // MARK: - Actions
 
     private func toggleRecording() {
         switch cameraService.recordingState {
-        case .recording:
+        case .recording, .paused:
             cameraService.stopRecording()
             promptSession.pause()
-            stopTimer()
+            stopScrollTimer()
             SSHaptics.medium()
-        default:
+        case .idle:
             startCountdown()
+        case .saved:
+            // Start new take
+            cameraService.resetForNewTake()
+            promptSession.scrollOffset = 0
+            startCountdown()
+        default:
+            break
+        }
+    }
+
+    private func togglePauseResume() {
+        if cameraService.recordingState == .recording {
+            cameraService.pauseRecording()
+            promptSession.pause()
+            SSHaptics.light()
+        } else if cameraService.recordingState == .paused {
+            cameraService.resumeRecording()
+            promptSession.play()
+            SSHaptics.light()
         }
     }
 
     private func startCountdown() {
         countdownValue = 3
         showCountdown = true
+        recordingDuration = 0
         SSHaptics.medium()
 
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
@@ -189,19 +414,37 @@ struct CameraRecordView: View {
                 cameraService.startRecording()
                 promptSession.play()
                 startScrollTimer()
+                startDurationTimer()
             }
         }
     }
 
     private func startScrollTimer() {
+        stopTimer()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
             guard promptSession.state == .prompting else { return }
             promptSession.scrollOffset += promptSession.scrollSpeed / 60.0
         }
     }
 
+    private func startDurationTimer() {
+        // Duration tracked via recordingDuration, updated in scroll timer
+    }
+
+    private func stopScrollTimer() {
+        stopTimer()
+    }
+
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+
+    private var formattedDuration: String {
+        // Calculate from actual recording time based on scroll offset and speed
+        let duration = promptSession.scrollOffset / max(promptSession.scrollSpeed, 1)
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 }

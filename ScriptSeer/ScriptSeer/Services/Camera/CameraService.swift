@@ -13,7 +13,21 @@ enum CameraPosition {
     }
 }
 
-enum RecordingState {
+enum VideoResolution: String, CaseIterable {
+    case hd720 = "720p"
+    case hd1080 = "1080p"
+    case uhd4K = "4K"
+
+    var sessionPreset: AVCaptureSession.Preset {
+        switch self {
+        case .hd720: .hd1280x720
+        case .hd1080: .hd1920x1080
+        case .uhd4K: .hd4K3840x2160
+        }
+    }
+}
+
+enum RecordingState: Equatable {
     case idle
     case preparing
     case countdown
@@ -30,6 +44,9 @@ final class CameraService: NSObject {
     var recordingState: RecordingState = .idle
     var currentPosition: CameraPosition = .front
     var isSessionRunning = false
+    var resolution: VideoResolution = .hd1080
+    var takeCount: Int = 0
+    var lastSavedURL: URL?
 
     private var videoOutput: AVCaptureMovieFileOutput?
     private var currentDevice: AVCaptureDevice?
@@ -38,7 +55,7 @@ final class CameraService: NSObject {
 
     func configure() {
         captureSession.beginConfiguration()
-        captureSession.sessionPreset = .high
+        captureSession.sessionPreset = resolution.sessionPreset
 
         // Video input
         guard let device = bestDevice(for: currentPosition),
@@ -128,10 +145,37 @@ final class CameraService: NSObject {
         output.startRecording(to: url, recordingDelegate: self)
     }
 
+    func pauseRecording() {
+        guard let output = videoOutput, output.isRecording else { return }
+        output.pauseRecording()
+        recordingState = .paused
+    }
+
+    func resumeRecording() {
+        guard let output = videoOutput, output.isRecordingPaused else { return }
+        output.resumeRecording()
+        recordingState = .recording
+    }
+
     func stopRecording() {
         guard let output = videoOutput, output.isRecording else { return }
         recordingState = .finishing
         output.stopRecording()
+    }
+
+    func setResolution(_ newResolution: VideoResolution) {
+        guard recordingState == .idle || recordingState == .saved else { return }
+        resolution = newResolution
+        captureSession.beginConfiguration()
+        if captureSession.canSetSessionPreset(newResolution.sessionPreset) {
+            captureSession.sessionPreset = newResolution.sessionPreset
+        }
+        captureSession.commitConfiguration()
+    }
+
+    func resetForNewTake() {
+        recordingState = .idle
+        lastSavedURL = nil
     }
 
     func saveToPhotos(url: URL, completion: @escaping (Bool) -> Void) {
@@ -188,6 +232,8 @@ extension CameraService: AVCaptureFileOutputRecordingDelegate {
             if error != nil {
                 self?.recordingState = .failed("Recording failed. Please try again.")
             } else {
+                self?.takeCount += 1
+                self?.lastSavedURL = outputFileURL
                 self?.recordingState = .saved
                 self?.saveToPhotos(url: outputFileURL) { _ in }
             }
