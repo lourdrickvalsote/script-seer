@@ -207,6 +207,7 @@ struct TeleprompterView: View {
                 }
             }
         }
+        .clipped()
         .contentShape(Rectangle())
         .onTapGesture {
             session.togglePlayPause()
@@ -216,7 +217,6 @@ struct TeleprompterView: View {
     @ViewBuilder
     private func promptTextView(width: CGFloat, height: CGFloat) -> some View {
         let margin = session.horizontalMargin
-        let textWidth = width - margin * 2
 
         VStack(alignment: .leading, spacing: session.lineSpacing) {
             // Top padding (start with text at center)
@@ -232,13 +232,13 @@ struct TeleprompterView: View {
                         let isHook = index < session.hookLineCount
                         richPromptText(para, sizeOverride: isHook ? session.textSize * 1.3 : nil)
                             .lineSpacing(session.lineSpacing)
-                            .frame(width: textWidth, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .opacity(isHook ? 1.0 : 0.85)
                     }
                 } else {
                     richPromptText(session.script.content)
                         .lineSpacing(session.lineSpacing)
-                        .frame(width: textWidth, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
             case .oneLine, .twoLine, .chunk:
@@ -254,7 +254,7 @@ struct TeleprompterView: View {
                         .font(SSTypography.promptText(size: isHook ? session.textSize * 1.3 : session.textSize))
                         .foregroundStyle(session.theme.textColor)
                         .lineSpacing(session.lineSpacing)
-                        .frame(width: textWidth, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .opacity(isHook ? 1.0 : 0.85)
                 }
             }
@@ -263,6 +263,7 @@ struct TeleprompterView: View {
             Spacer().frame(height: height)
         }
         .padding(.horizontal, margin)
+        .frame(width: width)
         .background(
             GeometryReader { contentGeometry in
                 Color.clear.onAppear {
@@ -427,55 +428,58 @@ struct TeleprompterView: View {
                 }
 
                 // Main control bar
-                HStack(spacing: SSSpacing.lg) {
-                    // Jump back
-                    ControlButton(icon: "gobackward") {
-                        session.jumpBack()
-                        SSHaptics.light()
-                    }
-
-                    // Jump forward
-                    ControlButton(icon: "goforward") {
-                        session.jumpForward()
-                        SSHaptics.light()
-                    }
-
-                    // Play / Pause
-                    ControlButton(icon: session.state == .prompting ? "pause.fill" : "play.fill") {
-                        session.togglePlayPause()
-                        SSHaptics.light()
-                    }
-
-                    // Scrub toggle
-                    ControlButton(icon: "slider.horizontal.below.rectangle") {
-                        withAnimation(SSAnimation.standard) {
-                            showScrubBar.toggle()
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: SSSpacing.md) {
+                        // Jump back
+                        ControlButton(icon: "gobackward") {
+                            session.jumpBack()
+                            SSHaptics.light()
                         }
-                        SSHaptics.selection()
-                    }
 
-                    // Speech follow
-                    ControlButton(icon: speechEngine.state == .idle || speechEngine.state == .stopped ? "waveform" : "waveform.badge.minus") {
-                        toggleSpeechFollow()
-                    }
-
-                    // Tune
-                    ControlButton(icon: "slider.horizontal.3") {
-                        withAnimation(SSAnimation.standard) {
-                            session.showTuneControls.toggle()
+                        // Jump forward
+                        ControlButton(icon: "goforward") {
+                            session.jumpForward()
+                            SSHaptics.light()
                         }
-                        SSHaptics.selection()
-                    }
 
-                    // Exit
-                    ControlButton(icon: "xmark") {
-                        showExitConfirmation = true
+                        // Play / Pause
+                        ControlButton(icon: session.state == .prompting ? "pause.fill" : "play.fill") {
+                            session.togglePlayPause()
+                            SSHaptics.light()
+                        }
+
+                        // Scrub toggle
+                        ControlButton(icon: "slider.horizontal.below.rectangle") {
+                            withAnimation(SSAnimation.standard) {
+                                showScrubBar.toggle()
+                            }
+                            SSHaptics.selection()
+                        }
+
+                        // Speech follow
+                        ControlButton(icon: speechEngine.state == .idle || speechEngine.state == .stopped ? "waveform" : "waveform.badge.minus") {
+                            toggleSpeechFollow()
+                        }
+
+                        // Tune
+                        ControlButton(icon: "slider.horizontal.3") {
+                            withAnimation(SSAnimation.standard) {
+                                session.showTuneControls.toggle()
+                            }
+                            SSHaptics.selection()
+                        }
+
+                        // Exit
+                        ControlButton(icon: "xmark") {
+                            showExitConfirmation = true
+                        }
                     }
+                    .padding(.vertical, SSSpacing.sm)
+                    .padding(.horizontal, SSSpacing.lg)
                 }
-                .padding(.vertical, SSSpacing.sm)
-                .padding(.horizontal, SSSpacing.lg)
                 .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: SSRadius.full))
+                .padding(.horizontal, SSSpacing.md)
             }
             .padding(.bottom, SSSpacing.lg)
         }
