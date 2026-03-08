@@ -1,22 +1,9 @@
-# OS
-.DS_Store
-
-# Xcode
-build/
-DerivedData/
+# Xcode user-specific files
 *.xcuserstate
 xcuserdata/
-*.xcscmblueprint
 
-# Swift Package Manager
-.build/
-Packages/
+# macOS
+.DS_Store
 
-# CocoaPods
-Pods/
-
-# IDE
-.idea/
-*.swp
-*.swo
-*~
+# Claude Code
+.claude/
