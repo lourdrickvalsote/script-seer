@@ -15,6 +15,8 @@ final class Script {
     @Relationship(deleteRule: .cascade, inverse: \ScriptVariant.parentScript)
     var variants: [ScriptVariant]
 
+    var folder: ScriptFolder?
+
     init(
         title: String = "Untitled Script",
         content: String = "",
