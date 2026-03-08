@@ -7,6 +7,8 @@ struct ScriptEditorView: View {
     @State private var showFormattingBar = true
     @State private var showCueMenu = false
     @State private var showVariantSheet = false
+    @State private var showAIActions = false
+    @State private var showVariantBrowser = false
     @FocusState private var editorFocused: Bool
 
     var body: some View {
@@ -45,8 +47,11 @@ struct ScriptEditorView: View {
                     Button(action: { showVariantSheet = true }) {
                         Label("Duplicate as Variant", systemImage: "doc.on.doc")
                     }
-                    Button(action: {}) {
-                        Label("Make Promptable", systemImage: "wand.and.stars")
+                    Button(action: { showAIActions = true }) {
+                        Label("AI Actions", systemImage: "wand.and.stars")
+                    }
+                    Button(action: { showVariantBrowser = true }) {
+                        Label("View Variants", systemImage: "list.bullet.rectangle")
                     }
                     Divider()
                     Button(action: { showFormattingBar.toggle() }) {
@@ -64,6 +69,14 @@ struct ScriptEditorView: View {
         .sheet(isPresented: $showVariantSheet) {
             DuplicateVariantSheet(script: script)
                 .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showAIActions) {
+            AIActionSheet(script: script)
+                .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showVariantBrowser) {
+            VariantBrowser(script: script)
+                .presentationDetents([.large])
         }
         .onAppear {
             editorFocused = true
