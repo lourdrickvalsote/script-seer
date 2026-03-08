@@ -6,6 +6,8 @@ struct TeleprompterView: View {
     @State private var countdownValue: Int = 3
     @State private var timer: Timer?
     @State private var showExitConfirmation = false
+    @State private var speechEngine = SpeechFollowEngine()
+    @State private var showSpeechControls = false
 
     init(script: Script) {
         self._session = State(initialValue: PromptSession(script: script))
@@ -24,6 +26,16 @@ struct TeleprompterView: View {
                 promptContent
             case .completed:
                 completedOverlay
+            }
+
+            // Speech follow overlay
+            if speechEngine.state != .idle && speechEngine.state != .stopped {
+                VStack {
+                    SpeechFollowOverlay(engine: speechEngine)
+                        .padding(.horizontal, SSSpacing.md)
+                        .padding(.top, SSSpacing.xxl)
+                    Spacer()
+                }
             }
 
             // Floating controls
@@ -214,6 +226,11 @@ struct TeleprompterView: View {
                     SSHaptics.light()
                 }
 
+                // Speech follow
+                ControlButton(icon: speechEngine.state == .idle || speechEngine.state == .stopped ? "waveform" : "waveform.badge.minus") {
+                    toggleSpeechFollow()
+                }
+
                 // Tune
                 ControlButton(icon: "slider.horizontal.3") {
                     withAnimation(SSAnimation.standard) {
@@ -323,6 +340,26 @@ struct TeleprompterView: View {
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+
+    // MARK: - Speech Follow
+
+    private func toggleSpeechFollow() {
+        if speechEngine.state == .idle || speechEngine.state == .stopped {
+            speechEngine.prepare(scriptContent: session.script.content)
+            Task {
+                let authorized = await speechEngine.requestAuthorization()
+                if authorized {
+                    speechEngine.start()
+                    SSHaptics.success()
+                } else {
+                    SSHaptics.error()
+                }
+            }
+        } else {
+            speechEngine.stop()
+            SSHaptics.light()
+        }
     }
 }
 
