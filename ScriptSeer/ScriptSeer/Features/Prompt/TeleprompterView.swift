@@ -12,6 +12,7 @@ struct TeleprompterView: View {
     @State private var currentFocusLine: Int = 0
     @State private var showScrubBar = false
     @State private var externalDisplay = ExternalDisplayManager()
+    @State private var gameController = GameControllerManager()
 
     init(script: Script) {
         self._session = State(initialValue: PromptSession(script: script))
@@ -66,6 +67,13 @@ struct TeleprompterView: View {
             Button("Cancel", role: .cancel) {}
         }
         .onDisappear { stopTimer() }
+        .onAppear {
+            gameController.onPlayPause = { session.togglePlayPause() }
+            gameController.onJumpBack = { session.jumpBack() }
+            gameController.onJumpForward = { session.jumpForward() }
+            gameController.onSpeedUp = { session.scrollSpeed = min(session.scrollSpeed + 5, 120) }
+            gameController.onSpeedDown = { session.scrollSpeed = max(session.scrollSpeed - 5, 10) }
+        }
         .keyboardShortcut(.space, modifiers: [])
         .onKeyPress(.space) {
             session.togglePlayPause()
@@ -571,18 +579,28 @@ struct TeleprompterView: View {
                     }
                 }
 
-                if externalDisplay.isExternalDisplayConnected {
+                if externalDisplay.isExternalDisplayConnected || gameController.isControllerConnected {
                     Divider().background(SSColors.divider)
 
-                    HStack {
-                        Image(systemName: "tv.fill")
-                            .foregroundStyle(SSColors.accent)
-                        Text("External Display Connected")
-                            .font(SSTypography.subheadline)
-                            .foregroundStyle(SSColors.textPrimary)
+                    if externalDisplay.isExternalDisplayConnected {
+                        HStack(spacing: SSSpacing.xs) {
+                            Image(systemName: "tv.fill")
+                                .foregroundStyle(SSColors.accent)
+                            Text("External Display Connected")
+                                .font(SSTypography.subheadline)
+                                .foregroundStyle(SSColors.textPrimary)
+                        }
                     }
 
-                    // This is a placeholder — removed duplicate HStack below
+                    if gameController.isControllerConnected {
+                        HStack(spacing: SSSpacing.xs) {
+                            Image(systemName: "gamecontroller.fill")
+                                .foregroundStyle(SSColors.accent)
+                            Text(gameController.controllerName)
+                                .font(SSTypography.subheadline)
+                                .foregroundStyle(SSColors.textPrimary)
+                        }
+                    }
                 }
 
                 Button("Done") {
