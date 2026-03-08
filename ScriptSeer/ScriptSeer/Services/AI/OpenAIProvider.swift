@@ -18,7 +18,9 @@ final class OpenAIProvider: AIProvider {
 
     func process(action: AIAction, content: String) async throws -> String {
         let systemPrompt = buildSystemPrompt(for: action)
-        let url = URL(string: "\(baseURL)/chat/completions")!
+        guard let url = URL(string: "\(baseURL)/chat/completions") else {
+            throw AIProviderError.invalidResponse
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

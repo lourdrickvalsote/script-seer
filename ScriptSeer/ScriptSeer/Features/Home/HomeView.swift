@@ -6,6 +6,8 @@ struct HomeView: View {
     @Query(sort: \Script.updatedAt, order: .reverse) private var scripts: [Script]
     @State private var showFilePicker = false
     @State private var showQuickPrompt = false
+    @State private var importError: String?
+    @State private var showImportError = false
 
     private var recentScripts: [Script] {
         Array(scripts.prefix(5))
@@ -78,16 +80,27 @@ struct HomeView: View {
             ) { result in
                 if case .success(let urls) = result, let url = urls.first {
                     Task {
-                        if let text = try? await ImportService.extractText(from: url) {
+                        do {
+                            let text = try await ImportService.extractText(from: url)
                             await MainActor.run {
                                 let title = ImportService.titleFromFilename(url)
                                 let script = Script(title: title, content: text)
                                 modelContext.insert(script)
                                 SSHaptics.success()
                             }
+                        } catch {
+                            await MainActor.run {
+                                importError = error.localizedDescription
+                                showImportError = true
+                            }
                         }
                     }
                 }
+            }
+            .alert("Import Failed", isPresented: $showImportError) {
+                Button("OK") {}
+            } message: {
+                Text(importError ?? "Could not import the file.")
             }
         }
     }

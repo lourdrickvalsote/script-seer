@@ -186,9 +186,9 @@ struct CueParser {
 struct SpeakerLabel {
     let name: String
     static let pattern = "\\[SPEAKER:\\s*([^\\]]+)\\]"
+    private static let regex = try! NSRegularExpression(pattern: pattern)
 
     static func extract(from text: String) -> [(range: Range<String.Index>, name: String)] {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
         let nsRange = NSRange(text.startIndex..., in: text)
         return regex.matches(in: text, range: nsRange).compactMap { match in
             guard let wholeRange = Range(match.range, in: text),
@@ -201,9 +201,9 @@ struct SpeakerLabel {
 struct SectionDivider {
     let title: String
     static let pattern = "\\[SECTION:\\s*([^\\]]+)\\]"
+    private static let regex = try! NSRegularExpression(pattern: pattern)
 
     static func extract(from text: String) -> [(range: Range<String.Index>, title: String)] {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
         let nsRange = NSRange(text.startIndex..., in: text)
         return regex.matches(in: text, range: nsRange).compactMap { match in
             guard let wholeRange = Range(match.range, in: text),

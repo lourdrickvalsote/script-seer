@@ -92,15 +92,15 @@ final class SpeechFollowEngine {
     }
 
     func stop() {
-        audioEngine.stop()
-        // Only remove tap if one was installed (recognition was started)
-        if recognitionRequest != nil {
-            audioEngine.inputNode.removeTap(onBus: 0)
-        }
+        let hadRequest = recognitionRequest != nil
         recognitionRequest?.endAudio()
-        recognitionTask?.cancel()
         recognitionRequest = nil
+        recognitionTask?.cancel()
         recognitionTask = nil
+        if hadRequest && audioEngine.isRunning {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            audioEngine.stop()
+        }
         state = .stopped
         debugLog(message: "Stopped")
     }
@@ -134,10 +134,15 @@ final class SpeechFollowEngine {
                     self.processResult(result)
                 }
                 if error != nil || (result?.isFinal ?? false) {
-                    self.audioEngine.stop()
-                    inputNode.removeTap(onBus: 0)
-                    self.recognitionRequest = nil
-                    self.recognitionTask = nil
+                    // Guard against double-stop race with stop()
+                    if self.recognitionRequest != nil {
+                        self.recognitionRequest = nil
+                        self.recognitionTask = nil
+                        if self.audioEngine.isRunning {
+                            inputNode.removeTap(onBus: 0)
+                            self.audioEngine.stop()
+                        }
+                    }
                     if self.state == .listening || self.state == .following {
                         self.state = .lowConfidence
                         self.debugLog(message: "Recognition ended, falling back")

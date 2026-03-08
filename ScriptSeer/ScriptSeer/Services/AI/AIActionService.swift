@@ -129,7 +129,7 @@ final class AIActionService {
         let providerType = UserDefaults.standard.string(forKey: "aiProviderType") ?? "mock"
         guard providerType == "openai" else { return MockAIProvider() }
 
-        let apiKey = UserDefaults.standard.string(forKey: "aiAPIKey") ?? ""
+        let apiKey = KeychainHelper.load(forKey: "aiAPIKey") ?? ""
         guard !apiKey.isEmpty else { return MockAIProvider() }
 
         let baseURL = UserDefaults.standard.string(forKey: "aiBaseURL") ?? "https://api.openai.com/v1"

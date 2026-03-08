@@ -1,6 +1,12 @@
 import Foundation
 import SwiftUI
 
+private extension Double {
+    func clamped(to range: ClosedRange<Double>, fallback: Double) -> Double {
+        self == 0 ? fallback : min(max(self, range.lowerBound), range.upperBound)
+    }
+}
+
 enum PromptSessionState {
     case idle
     case countdown
@@ -65,6 +71,8 @@ final class PromptSession {
     var hookModeEnabled: Bool = false
     var hookLineCount: Int = 3
     var rigModeEnabled: Bool = false // landscape-first, mirrored, high contrast
+    var startTime: Date?
+    var elapsedSeconds: TimeInterval = 0
 
     let script: Script
     let totalContentHeight: CGFloat
@@ -73,6 +81,14 @@ final class PromptSession {
         self.script = script
         self.totalContentHeight = totalContentHeight
         self.isMirrored = script.isMirrorDefault
+
+        // Load user defaults from Settings
+        let defaults = UserDefaults.standard
+        self.scrollSpeed = defaults.double(forKey: "defaultScrollSpeed").clamped(to: 10...120, fallback: 40)
+        self.textSize = CGFloat(defaults.double(forKey: "defaultTextSize").clamped(to: 18...72, fallback: 32))
+        self.lineSpacing = CGFloat(defaults.double(forKey: "defaultLineSpacing").clamped(to: 4...40, fallback: 16))
+        self.countdownSeconds = defaults.object(forKey: "defaultCountdown") as? Int ?? 3
+
         // Default target duration from estimated reading time
         self.targetDurationMinutes = max(0.5, script.estimatedDuration / 60.0)
     }
@@ -97,6 +113,9 @@ final class PromptSession {
 
     func play() {
         state = .prompting
+        if startTime == nil {
+            startTime = Date()
+        }
     }
 
     func pause() {
@@ -150,6 +169,20 @@ final class PromptSession {
     }
 
     func complete() {
+        if let start = startTime {
+            elapsedSeconds = Date().timeIntervalSince(start)
+        }
         state = .completed
+    }
+
+    var completionWPM: Int {
+        guard elapsedSeconds > 10 else { return 0 }
+        return Int(Double(script.wordCount) / (elapsedSeconds / 60.0))
+    }
+
+    var formattedElapsed: String {
+        let minutes = Int(elapsedSeconds) / 60
+        let seconds = Int(elapsedSeconds) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }

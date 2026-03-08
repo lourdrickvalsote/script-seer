@@ -73,14 +73,16 @@ struct ExportService {
             while currentOffset < totalLength {
                 context.beginPage()
 
+                let startY: CGFloat
                 if isFirstPage {
                     // Draw title
                     let titleString = NSAttributedString(string: title, attributes: titleAttributes)
                     titleString.draw(in: titleRect)
+                    startY = bodyStartY
                     isFirstPage = false
+                } else {
+                    startY = margin
                 }
-
-                let startY = isFirstPage ? bodyStartY : margin
                 let frameRect = CGRect(x: margin, y: startY, width: textWidth, height: pageHeight - startY - margin)
 
                 // Use CoreText for proper pagination

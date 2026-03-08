@@ -2,6 +2,7 @@ import StoreKit
 import Foundation
 
 /// Manages StoreKit 2 subscriptions for ScriptSeer Pro
+@MainActor
 @Observable
 final class StoreManager {
     static let shared = StoreManager()

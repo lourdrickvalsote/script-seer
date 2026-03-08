@@ -634,6 +634,36 @@ struct TeleprompterView: View {
                 .font(SSTypography.title)
                 .foregroundStyle(session.theme.textColor)
 
+            // Session stats
+            HStack(spacing: SSSpacing.xl) {
+                VStack(spacing: SSSpacing.xxs) {
+                    Text(session.formattedElapsed)
+                        .font(SSTypography.headline)
+                        .foregroundStyle(session.theme.textColor)
+                    Text("Duration")
+                        .font(SSTypography.caption)
+                        .foregroundStyle(session.theme.textColor.opacity(0.6))
+                }
+                VStack(spacing: SSSpacing.xxs) {
+                    Text("\(session.script.wordCount)")
+                        .font(SSTypography.headline)
+                        .foregroundStyle(session.theme.textColor)
+                    Text("Words")
+                        .font(SSTypography.caption)
+                        .foregroundStyle(session.theme.textColor.opacity(0.6))
+                }
+                if session.completionWPM > 0 {
+                    VStack(spacing: SSSpacing.xxs) {
+                        Text("\(session.completionWPM)")
+                            .font(SSTypography.headline)
+                            .foregroundStyle(session.theme.textColor)
+                        Text("WPM")
+                            .font(SSTypography.caption)
+                            .foregroundStyle(session.theme.textColor.opacity(0.6))
+                    }
+                }
+            }
+
             SSButton("Exit", variant: .secondary) { dismiss() }
                 .frame(width: 160)
         }

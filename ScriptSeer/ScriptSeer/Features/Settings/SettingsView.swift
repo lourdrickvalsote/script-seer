@@ -9,7 +9,7 @@ struct SettingsView: View {
     @AppStorage("hapticsEnabled") private var hapticsEnabled = true
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("aiProviderType") private var aiProviderType = "mock"
-    @AppStorage("aiAPIKey") private var aiAPIKey = ""
+    @State private var aiAPIKey = ""
     @AppStorage("aiBaseURL") private var aiBaseURL = "https://api.openai.com/v1"
     @AppStorage("aiModel") private var aiModel = "gpt-4o-mini"
 
@@ -135,7 +135,9 @@ struct SettingsView: View {
                     NavigationLink(destination: ProUpgradeView()) {
                         SettingsRow(icon: "star", title: "ScriptSeer Pro")
                     }
-                    Button(action: {}) {
+                    Button(action: {
+                        Task { await StoreManager.shared.restorePurchases() }
+                    }) {
                         SettingsRow(icon: "arrow.clockwise", title: "Restore Purchases")
                     }
                 } header: {
@@ -146,7 +148,13 @@ struct SettingsView: View {
 
                 // About
                 Section {
-                    SettingsRow(icon: "info.circle", title: "About ScriptSeer")
+                    HStack {
+                        SettingsRow(icon: "info.circle", title: "About ScriptSeer")
+                        Spacer()
+                        Text(Bundle.main.appVersion)
+                            .font(SSTypography.caption)
+                            .foregroundStyle(SSColors.textTertiary)
+                    }
                 } header: {
                     Text("More")
                         .foregroundStyle(SSColors.textTertiary)
@@ -156,7 +164,21 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(SSColors.background)
             .navigationTitle("Settings")
+            .onAppear {
+                aiAPIKey = KeychainHelper.load(forKey: "aiAPIKey") ?? ""
+            }
+            .onChange(of: aiAPIKey) {
+                KeychainHelper.save(aiAPIKey, forKey: "aiAPIKey")
+            }
         }
+    }
+}
+
+private extension Bundle {
+    var appVersion: String {
+        let version = infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "v\(version) (\(build))"
     }
 }
 
