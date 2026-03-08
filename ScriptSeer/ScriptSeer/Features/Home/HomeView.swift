@@ -5,6 +5,7 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Script.updatedAt, order: .reverse) private var scripts: [Script]
     @State private var showFilePicker = false
+    @State private var showQuickPrompt = false
 
     private var recentScripts: [Script] {
         Array(scripts.prefix(5))
@@ -29,8 +30,13 @@ struct HomeView: View {
                         QuickActionCard(icon: "doc.badge.arrow.up", title: "Import", subtitle: "From file") {
                             showFilePicker = true
                         }
-                        QuickActionCard(icon: "play.fill", title: "Quick Prompt", subtitle: "Paste & go") {}
-                        QuickActionCard(icon: "video.fill", title: "Record", subtitle: "Camera mode") {}
+                        QuickActionCard(icon: "play.fill", title: "Quick Prompt", subtitle: "Paste & go") {
+                            showQuickPrompt = true
+                        }
+                        QuickActionCard(icon: "video.fill", title: "Record", subtitle: "Camera mode") {
+                            // Navigate to Record tab via notification
+                            NotificationCenter.default.post(name: .switchToRecordTab, object: nil)
+                        }
                     }
 
                     // Recent Scripts
@@ -61,7 +67,10 @@ struct HomeView: View {
             }
             .background(SSColors.background)
             .navigationTitle("ScriptSeer")
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .sheet(isPresented: $showQuickPrompt) {
+                QuickPromptSheet()
+                    .presentationDetents([.large])
+            }
             .fileImporter(
                 isPresented: $showFilePicker,
                 allowedContentTypes: ImportService.supportedTypes,
@@ -88,6 +97,10 @@ struct HomeView: View {
         modelContext.insert(script)
         SSHaptics.light()
     }
+}
+
+extension Notification.Name {
+    static let switchToRecordTab = Notification.Name("switchToRecordTab")
 }
 
 private struct QuickActionCard: View {

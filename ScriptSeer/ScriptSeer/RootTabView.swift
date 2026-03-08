@@ -17,6 +17,9 @@ struct RootTabView: View {
         .onAppear {
             configureTabBarAppearance()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .switchToRecordTab)) { _ in
+            selectedTab = .record
+        }
     }
 
     private func configureTabBarAppearance() {
