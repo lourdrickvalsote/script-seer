@@ -17,6 +17,9 @@ final class Script {
 
     var folder: ScriptFolder?
 
+    @Relationship(deleteRule: .cascade, inverse: \ScriptRevision.script)
+    var revisions: [ScriptRevision]
+
     init(
         title: String = "Untitled Script",
         content: String = "",
@@ -32,6 +35,7 @@ final class Script {
         self.tags = tags
         self.isMirrorDefault = isMirrorDefault
         self.variants = []
+        self.revisions = []
     }
 
     func duplicate() -> Script {

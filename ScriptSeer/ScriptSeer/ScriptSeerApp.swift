@@ -10,6 +10,7 @@ struct ScriptSeerApp: App {
             Script.self,
             ScriptVariant.self,
             ScriptFolder.self,
+            ScriptRevision.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

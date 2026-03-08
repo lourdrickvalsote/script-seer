@@ -10,6 +10,7 @@ struct ScriptEditorView: View {
     @State private var showAIActions = false
     @State private var showVariantBrowser = false
     @State private var showReflowConfirm = false
+    @State private var showRevisionHistory = false
     @FocusState private var editorFocused: Bool
 
     var body: some View {
@@ -57,6 +58,9 @@ struct ScriptEditorView: View {
                     Button(action: { showReflowConfirm = true }) {
                         Label("Reflow for Prompter", systemImage: "text.line.first.and.arrowtriangle.forward")
                     }
+                    Button(action: { showRevisionHistory = true }) {
+                        Label("Version History", systemImage: "clock.arrow.circlepath")
+                    }
                     Divider()
                     Button(action: { showFormattingBar.toggle() }) {
                         Label(
@@ -80,6 +84,10 @@ struct ScriptEditorView: View {
         }
         .sheet(isPresented: $showVariantBrowser) {
             VariantBrowser(script: script)
+                .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showRevisionHistory) {
+            RevisionHistoryView(script: script)
                 .presentationDetents([.large])
         }
         .alert("Reflow Script", isPresented: $showReflowConfirm) {
