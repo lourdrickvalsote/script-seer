@@ -25,5 +25,7 @@ struct ScriptRowView: View {
             }
         }
         .padding(.vertical, SSSpacing.xxs)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(script.title), \(script.wordCount) words, \(script.formattedDuration)")
     }
 }

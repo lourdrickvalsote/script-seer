@@ -44,5 +44,7 @@ struct SSEmptyState: View {
             }
         }
         .padding(SSSpacing.xxl)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(subtitle)")
     }
 }

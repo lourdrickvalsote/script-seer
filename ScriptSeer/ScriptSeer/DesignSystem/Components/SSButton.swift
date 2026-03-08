@@ -45,11 +45,12 @@ struct SSButton: View {
             .background(backgroundView)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
     }
 
     private var foregroundColor: Color {
         switch variant {
-        case .primary: .white
+        case .primary: SSColors.lavenderMist
         case .secondary: SSColors.accent
         case .ghost: SSColors.textSecondary
         case .destructive: SSColors.recordingRed
@@ -61,7 +62,7 @@ struct SSButton: View {
         switch variant {
         case .primary:
             RoundedRectangle(cornerRadius: SSRadius.md)
-                .fill(SSColors.accent.opacity(0.85))
+                .fill(SSColors.accent)
         case .secondary:
             RoundedRectangle(cornerRadius: SSRadius.md)
                 .fill(SSColors.accentSubtle)
