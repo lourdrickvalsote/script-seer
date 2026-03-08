@@ -260,17 +260,26 @@ struct TeleprompterView: View {
         }
     }
 
-    /// Renders script content with cue markers styled as colored inline symbols
+    /// Renders script content with cue markers, speaker labels, and section dividers
     private func richPromptText(_ content: String, sizeOverride: CGFloat? = nil) -> Text {
         let size = sizeOverride ?? session.textSize
         let segments = CueParser.parse(content)
         var result = Text("")
         for segment in segments {
-            if let cue = segment.cue {
+            switch segment.kind {
+            case .cue(let cue):
                 result = result + Text(" \(cue.displaySymbol) ")
                     .font(.system(size: size * 0.7))
                     .foregroundColor(cue.promptColor)
-            } else {
+            case .speaker(let name):
+                result = result + Text("\n\(name.uppercased()): ")
+                    .font(.system(size: size * 0.8, weight: .bold))
+                    .foregroundColor(SSColors.accent)
+            case .section(let title):
+                result = result + Text("\n— \(title) —\n")
+                    .font(.system(size: size * 0.75, weight: .semibold))
+                    .foregroundColor(SSColors.silverSage)
+            case .text:
                 result = result + Text(segment.content)
                     .font(SSTypography.promptText(size: size))
                     .foregroundColor(session.theme.textColor)

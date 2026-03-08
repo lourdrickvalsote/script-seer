@@ -140,6 +140,20 @@ struct ScriptEditorView: View {
                     .frame(height: 24)
                     .background(SSColors.divider)
 
+                // Speaker & Section markers
+                FormatButton(icon: "person.fill", label: "Speaker") {
+                    script.updateContent(script.content + "\n[SPEAKER: Name] ")
+                    SSHaptics.light()
+                }
+                FormatButton(icon: "text.line.first.and.arrowtriangle.forward", label: "Section") {
+                    script.updateContent(script.content + "\n[SECTION: Title]\n")
+                    SSHaptics.light()
+                }
+
+                Divider()
+                    .frame(height: 24)
+                    .background(SSColors.divider)
+
                 // Teleprompter cues by category
                 ForEach(CueCategory.allCases, id: \.self) { category in
                     Menu {

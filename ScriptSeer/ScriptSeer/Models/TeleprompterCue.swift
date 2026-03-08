@@ -73,12 +73,28 @@ enum CueCategory: String, CaseIterable {
 
 /// Parses script content into segments of text and cues for rich rendering
 struct CueParser {
+    enum SegmentKind {
+        case text
+        case cue(TeleprompterCueType)
+        case speaker(String)
+        case section(String)
+    }
+
     struct Segment: Identifiable {
         let id = UUID()
         let content: String
-        let cue: TeleprompterCueType?
+        let kind: SegmentKind
 
-        var isText: Bool { cue == nil }
+        var isText: Bool {
+            if case .text = kind { return true }
+            return false
+        }
+
+        // Backward compat
+        var cue: TeleprompterCueType? {
+            if case .cue(let c) = kind { return c }
+            return nil
+        }
     }
 
     static func parse(_ text: String) -> [Segment] {
@@ -86,32 +102,52 @@ struct CueParser {
         var remaining = text
 
         while !remaining.isEmpty {
-            // Find the next cue marker
+            // Find the next marker (cue, speaker label, or section divider)
             var earliestRange: Range<String.Index>?
-            var earliestCue: TeleprompterCueType?
+            var earliestKind: SegmentKind?
+            var earliestDisplay: String?
 
+            // Check cue markers
             for cueType in TeleprompterCueType.allCases {
                 if let range = remaining.range(of: cueType.rawValue) {
                     if earliestRange == nil || range.lowerBound < earliestRange!.lowerBound {
                         earliestRange = range
-                        earliestCue = cueType
+                        earliestKind = .cue(cueType)
+                        earliestDisplay = cueType.displaySymbol
                     }
                 }
             }
 
-            if let range = earliestRange, let cue = earliestCue {
-                // Add text before the cue
+            // Check speaker labels
+            let speakers = SpeakerLabel.extract(from: remaining)
+            if let first = speakers.first {
+                if earliestRange == nil || first.range.lowerBound < earliestRange!.lowerBound {
+                    earliestRange = first.range
+                    earliestKind = .speaker(first.name)
+                    earliestDisplay = first.name
+                }
+            }
+
+            // Check section dividers
+            let sections = SectionDivider.extract(from: remaining)
+            if let first = sections.first {
+                if earliestRange == nil || first.range.lowerBound < earliestRange!.lowerBound {
+                    earliestRange = first.range
+                    earliestKind = .section(first.title)
+                    earliestDisplay = first.title
+                }
+            }
+
+            if let range = earliestRange, let kind = earliestKind, let display = earliestDisplay {
                 let textBefore = String(remaining[remaining.startIndex..<range.lowerBound])
                 if !textBefore.trimmingCharacters(in: .whitespaces).isEmpty {
-                    segments.append(Segment(content: textBefore, cue: nil))
+                    segments.append(Segment(content: textBefore, kind: .text))
                 }
-                // Add the cue
-                segments.append(Segment(content: cue.displaySymbol, cue: cue))
+                segments.append(Segment(content: display, kind: kind))
                 remaining = String(remaining[range.upperBound...])
             } else {
-                // No more cues, add remaining text
                 if !remaining.trimmingCharacters(in: .whitespaces).isEmpty {
-                    segments.append(Segment(content: remaining, cue: nil))
+                    segments.append(Segment(content: remaining, kind: .text))
                 }
                 break
             }
@@ -126,10 +162,53 @@ struct CueParser {
         for cueType in TeleprompterCueType.allCases {
             result = result.replacingOccurrences(of: cueType.rawValue, with: "")
         }
+        // Strip speaker labels and section dividers
+        result = result.replacingOccurrences(
+            of: "\\[SPEAKER:\\s*[^\\]]+\\]",
+            with: "",
+            options: .regularExpression
+        )
+        result = result.replacingOccurrences(
+            of: "\\[SECTION:\\s*[^\\]]+\\]",
+            with: "",
+            options: .regularExpression
+        )
         // Clean up extra spaces
         while result.contains("  ") {
             result = result.replacingOccurrences(of: "  ", with: " ")
         }
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+// MARK: - Speaker Labels & Section Dividers
+
+struct SpeakerLabel {
+    let name: String
+    static let pattern = "\\[SPEAKER:\\s*([^\\]]+)\\]"
+
+    static func extract(from text: String) -> [(range: Range<String.Index>, name: String)] {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let nsRange = NSRange(text.startIndex..., in: text)
+        return regex.matches(in: text, range: nsRange).compactMap { match in
+            guard let wholeRange = Range(match.range, in: text),
+                  let nameRange = Range(match.range(at: 1), in: text) else { return nil }
+            return (range: wholeRange, name: String(text[nameRange]).trimmingCharacters(in: .whitespaces))
+        }
+    }
+}
+
+struct SectionDivider {
+    let title: String
+    static let pattern = "\\[SECTION:\\s*([^\\]]+)\\]"
+
+    static func extract(from text: String) -> [(range: Range<String.Index>, title: String)] {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let nsRange = NSRange(text.startIndex..., in: text)
+        return regex.matches(in: text, range: nsRange).compactMap { match in
+            guard let wholeRange = Range(match.range, in: text),
+                  let titleRange = Range(match.range(at: 1), in: text) else { return nil }
+            return (range: wholeRange, title: String(text[titleRange]).trimmingCharacters(in: .whitespaces))
+        }
     }
 }
