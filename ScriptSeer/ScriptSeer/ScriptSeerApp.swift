@@ -5,7 +5,9 @@ import SwiftData
 struct ScriptSeerApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Script.self,
+            ScriptVariant.self,
+            ScriptFolder.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
