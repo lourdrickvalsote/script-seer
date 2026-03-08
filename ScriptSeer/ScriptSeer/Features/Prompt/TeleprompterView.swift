@@ -10,6 +10,7 @@ struct TeleprompterView: View {
     @State private var showSpeechControls = false
     @State private var focusConfig = FocusWindowConfig()
     @State private var currentFocusLine: Int = 0
+    @State private var showScrubBar = false
 
     init(script: Script) {
         self._session = State(initialValue: PromptSession(script: script))
@@ -79,6 +80,10 @@ struct TeleprompterView: View {
         }
         .onKeyPress(.leftArrow) {
             session.jumpBack()
+            return .handled
+        }
+        .onKeyPress(.rightArrow) {
+            session.jumpForward()
             return .handled
         }
         .onKeyPress(.escape) {
@@ -300,41 +305,110 @@ struct TeleprompterView: View {
     private var promptControls: some View {
         VStack {
             Spacer()
-            HStack(spacing: SSSpacing.lg) {
-                // Jump back
-                ControlButton(icon: "gobackward") {
-                    session.jumpBack()
-                    SSHaptics.light()
-                }
 
-                // Play / Pause
-                ControlButton(icon: session.state == .prompting ? "pause.fill" : "play.fill") {
-                    session.togglePlayPause()
-                    SSHaptics.light()
-                }
+            VStack(spacing: SSSpacing.xs) {
+                // Scrub bar (toggleable)
+                if showScrubBar {
+                    VStack(spacing: SSSpacing.xxs) {
+                        // Section jump menu
+                        if !session.sections.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: SSSpacing.xxs) {
+                                    ForEach(Array(session.sections.enumerated()), id: \.offset) { _, section in
+                                        Button(action: {
+                                            session.scrollProgress = section.progress
+                                            SSHaptics.light()
+                                        }) {
+                                            Text(section.title)
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(.white.opacity(0.8))
+                                                .lineLimit(1)
+                                                .padding(.horizontal, SSSpacing.xs)
+                                                .padding(.vertical, 4)
+                                                .background(.white.opacity(0.15))
+                                                .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, SSSpacing.sm)
+                            }
+                        }
 
-                // Speech follow
-                ControlButton(icon: speechEngine.state == .idle || speechEngine.state == .stopped ? "waveform" : "waveform.badge.minus") {
-                    toggleSpeechFollow()
-                }
+                        // Progress slider
+                        HStack(spacing: SSSpacing.xs) {
+                            Text("\(Int(session.scrollProgress * 100))%")
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .frame(width: 36)
 
-                // Tune
-                ControlButton(icon: "slider.horizontal.3") {
-                    withAnimation(SSAnimation.standard) {
-                        session.showTuneControls.toggle()
+                            Slider(
+                                value: Binding(
+                                    get: { session.scrollProgress },
+                                    set: { session.scrollProgress = $0 }
+                                ),
+                                in: 0...1
+                            )
+                            .tint(.white.opacity(0.6))
+                        }
+                        .padding(.horizontal, SSSpacing.md)
                     }
-                    SSHaptics.selection()
+                    .padding(.vertical, SSSpacing.xs)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+                    .padding(.horizontal, SSSpacing.md)
                 }
 
-                // Exit
-                ControlButton(icon: "xmark") {
-                    showExitConfirmation = true
+                // Main control bar
+                HStack(spacing: SSSpacing.lg) {
+                    // Jump back
+                    ControlButton(icon: "gobackward") {
+                        session.jumpBack()
+                        SSHaptics.light()
+                    }
+
+                    // Jump forward
+                    ControlButton(icon: "goforward") {
+                        session.jumpForward()
+                        SSHaptics.light()
+                    }
+
+                    // Play / Pause
+                    ControlButton(icon: session.state == .prompting ? "pause.fill" : "play.fill") {
+                        session.togglePlayPause()
+                        SSHaptics.light()
+                    }
+
+                    // Scrub toggle
+                    ControlButton(icon: "slider.horizontal.below.rectangle") {
+                        withAnimation(SSAnimation.standard) {
+                            showScrubBar.toggle()
+                        }
+                        SSHaptics.selection()
+                    }
+
+                    // Speech follow
+                    ControlButton(icon: speechEngine.state == .idle || speechEngine.state == .stopped ? "waveform" : "waveform.badge.minus") {
+                        toggleSpeechFollow()
+                    }
+
+                    // Tune
+                    ControlButton(icon: "slider.horizontal.3") {
+                        withAnimation(SSAnimation.standard) {
+                            session.showTuneControls.toggle()
+                        }
+                        SSHaptics.selection()
+                    }
+
+                    // Exit
+                    ControlButton(icon: "xmark") {
+                        showExitConfirmation = true
+                    }
                 }
+                .padding(.vertical, SSSpacing.sm)
+                .padding(.horizontal, SSSpacing.lg)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: SSRadius.full))
             }
-            .padding(.vertical, SSSpacing.sm)
-            .padding(.horizontal, SSSpacing.lg)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: SSRadius.full))
             .padding(.bottom, SSSpacing.lg)
         }
     }

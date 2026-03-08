@@ -112,6 +112,40 @@ final class PromptSession {
         scrollOffset = max(0, scrollOffset - points)
     }
 
+    func jumpForward(points: CGFloat = 200) {
+        scrollOffset += points
+    }
+
+    /// Scrub progress (0.0 to 1.0)
+    var scrollProgress: Double {
+        get {
+            guard measuredContentHeight > 0 else { return 0 }
+            return min(1.0, Double(scrollOffset) / Double(measuredContentHeight))
+        }
+        set {
+            guard measuredContentHeight > 0 else { return }
+            scrollOffset = CGFloat(newValue) * measuredContentHeight
+        }
+    }
+
+    /// Section titles (paragraphs) with their approximate scroll offsets
+    var sections: [(title: String, progress: Double)] {
+        let paragraphs = script.content
+            .components(separatedBy: "\n\n")
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard paragraphs.count > 1 else { return [] }
+
+        let totalChars = Double(script.content.count)
+        var charOffset: Double = 0
+
+        return paragraphs.enumerated().map { index, paragraph in
+            let progress = charOffset / totalChars
+            charOffset += Double(paragraph.count) + 2 // +2 for \n\n
+            let preview = String(paragraph.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))
+            return (title: "§\(index + 1): \(preview)…", progress: progress)
+        }
+    }
+
     func complete() {
         state = .completed
     }
