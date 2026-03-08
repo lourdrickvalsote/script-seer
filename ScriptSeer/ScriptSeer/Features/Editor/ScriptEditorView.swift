@@ -40,7 +40,6 @@ struct ScriptEditorView: View {
         .background(SSColors.background)
         .navigationTitle(script.title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -125,10 +124,22 @@ struct ScriptEditorView: View {
                     .frame(height: 24)
                     .background(SSColors.divider)
 
-                // Teleprompter cues
-                ForEach(TeleprompterCueType.allCases, id: \.self) { cue in
-                    FormatButton(icon: nil, emoji: cue.displaySymbol, label: cue.displayName) {
-                        insertCue(cue)
+                // Teleprompter cues by category
+                ForEach(CueCategory.allCases, id: \.self) { category in
+                    Menu {
+                        ForEach(TeleprompterCueType.allCases.filter { $0.category == category }, id: \.self) { cue in
+                            Button("\(cue.displaySymbol) \(cue.displayName)") {
+                                insertCue(cue)
+                            }
+                        }
+                    } label: {
+                        Text(category.rawValue)
+                            .font(SSTypography.caption)
+                            .foregroundStyle(SSColors.accent)
+                            .padding(.horizontal, SSSpacing.xs)
+                            .padding(.vertical, SSSpacing.xxs)
+                            .background(SSColors.surfaceGlass)
+                            .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
                     }
                 }
             }

@@ -197,14 +197,12 @@ struct TeleprompterView: View {
 
             switch session.displayMode {
             case .paragraph:
-                Text(session.script.content)
-                    .font(SSTypography.promptText(size: session.textSize))
-                    .foregroundStyle(session.theme.textColor)
+                richPromptText(session.script.content)
                     .lineSpacing(session.lineSpacing)
                     .frame(width: textWidth, alignment: .leading)
 
             case .oneLine, .twoLine, .chunk:
-                let lines = session.script.content
+                let lines = CueParser.stripCues(session.script.content)
                     .components(separatedBy: .newlines)
                     .flatMap { paragraph in
                         paragraph.isEmpty ? [""] : splitIntoLines(paragraph, mode: session.displayMode)
@@ -245,6 +243,24 @@ struct TeleprompterView: View {
             let end = min(start + chunkSize, words.count)
             return words[start..<end].joined(separator: " ")
         }
+    }
+
+    /// Renders script content with cue markers styled as colored inline symbols
+    private func richPromptText(_ content: String) -> Text {
+        let segments = CueParser.parse(content)
+        var result = Text("")
+        for segment in segments {
+            if let cue = segment.cue {
+                result = result + Text(" \(cue.displaySymbol) ")
+                    .font(.system(size: session.textSize * 0.7))
+                    .foregroundColor(cue.promptColor)
+            } else {
+                result = result + Text(segment.content)
+                    .font(SSTypography.promptText(size: session.textSize))
+                    .foregroundColor(session.theme.textColor)
+            }
+        }
+        return result
     }
 
     // MARK: - Focus Window
