@@ -5,6 +5,8 @@ struct ScriptDetailView: View {
     @Bindable var script: Script
     @State private var editingTitle = false
     @State private var editedTitle = ""
+    @State private var showExportSheet = false
+    @State private var exportItems: [Any] = []
     @FocusState private var titleFocused: Bool
 
     var body: some View {
@@ -73,13 +75,13 @@ struct ScriptDetailView: View {
                             Text("Start Prompting")
                                 .font(SSTypography.headline)
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(SSColors.lavenderMist)
                         .padding(.horizontal, SSSpacing.lg)
                         .padding(.vertical, SSSpacing.sm)
                         .frame(maxWidth: .infinity)
                         .background(
                             RoundedRectangle(cornerRadius: SSRadius.md)
-                                .fill(SSColors.accent.opacity(0.85))
+                                .fill(SSColors.accent)
                         )
                     }
                     .buttonStyle(.plain)
@@ -108,7 +110,36 @@ struct ScriptDetailView: View {
         .background(SSColors.background)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button(action: { exportScript(format: .plainText) }) {
+                        Label("Share as Plain Text", systemImage: "doc.plaintext")
+                    }
+                    Button(action: { exportScript(format: .withCues) }) {
+                        Label("Share with Cues", systemImage: "doc.text")
+                    }
+                    Button(action: { exportScript(format: .pdf) }) {
+                        Label("Share as PDF", systemImage: "doc.richtext")
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundStyle(SSColors.accent)
+                }
+            }
+        }
+        .sheet(isPresented: $showExportSheet) {
+            if let url = exportItems.first as? URL {
+                ShareSheet(items: [url])
+            }
+        }
+    }
+
+    private func exportScript(format: ExportService.ExportFormat) {
+        if let url = ExportService.createTempFile(script: script, format: format) {
+            exportItems = [url]
+            showExportSheet = true
+        }
     }
 }
 
