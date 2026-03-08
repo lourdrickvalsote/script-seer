@@ -9,6 +9,11 @@ enum PromptSessionState {
     case completed
 }
 
+enum ScrollMode: String, CaseIterable {
+    case manual = "Manual"
+    case timed = "Timed"
+}
+
 enum PromptDisplayMode: String, CaseIterable {
     case paragraph = "Paragraph"
     case twoLine = "Two Line"
@@ -24,8 +29,8 @@ enum PromptTheme: String, CaseIterable {
 
     var textColor: Color {
         switch self {
-        case .lightOnDark: .white
-        case .darkOnLight: .black
+        case .lightOnDark: SSColors.lavenderMist
+        case .darkOnLight: SSColors.darkForest
         case .greenOnBlack: Color(red: 0.3, green: 1.0, blue: 0.3)
         case .yellowOnDark: Color(red: 1.0, green: 0.95, blue: 0.6)
         }
@@ -33,10 +38,10 @@ enum PromptTheme: String, CaseIterable {
 
     var backgroundColor: Color {
         switch self {
-        case .lightOnDark: Color(red: 0.05, green: 0.05, blue: 0.06)
-        case .darkOnLight: Color(white: 0.95)
+        case .lightOnDark: SSColors.darkForest
+        case .darkOnLight: SSColors.lavenderMist
         case .greenOnBlack: .black
-        case .yellowOnDark: Color(red: 0.08, green: 0.08, blue: 0.10)
+        case .yellowOnDark: Color(red: 20/255, green: 26/255, blue: 20/255)
         }
     }
 }
@@ -54,6 +59,9 @@ final class PromptSession {
     var countdownSeconds: Int = 3
     var scrollOffset: CGFloat = 0
     var showTuneControls: Bool = false
+    var scrollMode: ScrollMode = .manual
+    var targetDurationMinutes: Double = 2.0 // for timed mode
+    var measuredContentHeight: CGFloat = 0 // set by view after layout
 
     let script: Script
     let totalContentHeight: CGFloat
@@ -62,6 +70,22 @@ final class PromptSession {
         self.script = script
         self.totalContentHeight = totalContentHeight
         self.isMirrored = script.isMirrorDefault
+        // Default target duration from estimated reading time
+        self.targetDurationMinutes = max(0.5, script.estimatedDuration / 60.0)
+    }
+
+    /// Calculated speed for timed mode (points per second to finish in target duration)
+    var timedScrollSpeed: Double {
+        guard measuredContentHeight > 0, targetDurationMinutes > 0 else {
+            return scrollSpeed
+        }
+        let targetSeconds = targetDurationMinutes * 60.0
+        return Double(measuredContentHeight) / targetSeconds
+    }
+
+    /// The effective scroll speed considering the current mode
+    var effectiveScrollSpeed: Double {
+        scrollMode == .timed ? timedScrollSpeed : scrollSpeed
     }
 
     func start() {

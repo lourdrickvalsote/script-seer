@@ -218,6 +218,13 @@ struct TeleprompterView: View {
             Spacer().frame(height: height)
         }
         .padding(.horizontal, margin)
+        .background(
+            GeometryReader { contentGeometry in
+                Color.clear.onAppear {
+                    session.measuredContentHeight = contentGeometry.size.height
+                }
+            }
+        )
     }
 
     private func splitIntoLines(_ text: String, mode: PromptDisplayMode) -> [String] {
@@ -343,7 +350,29 @@ struct TeleprompterView: View {
                     .font(SSTypography.headline)
                     .foregroundStyle(SSColors.textPrimary)
 
-                TuneSlider(label: "Speed", value: $session.scrollSpeed, range: 10...120, unit: "pt/s")
+                // Scroll mode picker
+                Picker("Scroll Mode", selection: $session.scrollMode) {
+                    ForEach(ScrollMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                if session.scrollMode == .manual {
+                    TuneSlider(label: "Speed", value: $session.scrollSpeed, range: 10...120, unit: "pt/s")
+                } else {
+                    TuneSlider(label: "Duration", value: $session.targetDurationMinutes, range: 0.5...30, unit: "min")
+                    HStack {
+                        Text("Auto speed")
+                            .font(SSTypography.caption)
+                            .foregroundStyle(SSColors.textSecondary)
+                        Spacer()
+                        Text("\(Int(session.timedScrollSpeed)) pt/s")
+                            .font(SSTypography.caption)
+                            .foregroundStyle(SSColors.textTertiary)
+                    }
+                }
+
                 TuneSlider(label: "Text Size", value: $session.textSize, range: 18...72, unit: "pt")
                 TuneSlider(label: "Line Spacing", value: $session.lineSpacing, range: 4...40, unit: "pt")
                 TuneSlider(label: "Margins", value: $session.horizontalMargin, range: 8...80, unit: "pt")
@@ -449,7 +478,7 @@ struct TeleprompterView: View {
         stopTimer()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
             guard session.state == .prompting else { return }
-            let speed = speechEngine.isConfidenceScrollEnabled ? speechEngine.adaptiveSpeed : session.scrollSpeed
+            let speed = speechEngine.isConfidenceScrollEnabled ? speechEngine.adaptiveSpeed : session.effectiveScrollSpeed
             session.scrollOffset += speed / 60.0
         }
     }
