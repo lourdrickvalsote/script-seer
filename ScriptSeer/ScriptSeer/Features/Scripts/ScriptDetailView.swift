@@ -61,7 +61,23 @@ struct ScriptDetailView: View {
 
                 // Actions
                 VStack(spacing: SSSpacing.sm) {
-                    SSButton("Start Prompting", icon: "play.fill", variant: .primary) {}
+                    NavigationLink(destination: TeleprompterView(script: script)) {
+                        HStack(spacing: SSSpacing.xs) {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("Start Prompting")
+                                .font(SSTypography.headline)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, SSSpacing.lg)
+                        .padding(.vertical, SSSpacing.sm)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: SSRadius.md)
+                                .fill(SSColors.accent.opacity(0.85))
+                        )
+                    }
+                    .buttonStyle(.plain)
                     NavigationLink(destination: ScriptEditorView(script: script)) {
                         HStack(spacing: SSSpacing.xs) {
                             Image(systemName: "pencil")
