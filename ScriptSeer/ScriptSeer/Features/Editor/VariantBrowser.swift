@@ -51,7 +51,6 @@ struct VariantBrowser: View {
             .background(SSColors.background)
             .navigationTitle("Variants")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }

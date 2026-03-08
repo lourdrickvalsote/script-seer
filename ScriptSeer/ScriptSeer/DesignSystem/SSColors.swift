@@ -1,22 +1,89 @@
 import SwiftUI
 
 enum SSColors {
-    static let background = Color(red: 0.06, green: 0.06, blue: 0.07)
-    static let surface = Color(red: 0.10, green: 0.10, blue: 0.11)
-    static let surfaceElevated = Color(red: 0.14, green: 0.14, blue: 0.15)
-    static let surfaceGlass = Color.white.opacity(0.06)
+    // MARK: - Brand Palette
 
-    static let textPrimary = Color.white
-    static let textSecondary = Color(white: 0.65)
-    static let textTertiary = Color(white: 0.40)
+    /// #0c120c — Near-black forest green
+    static let darkForest = Color(red: 12/255, green: 18/255, blue: 12/255)
+    /// #c20114 — Bold crimson red
+    static let crimson = Color(red: 194/255, green: 1/255, blue: 20/255)
+    /// #6d7275 — Medium slate gray
+    static let slate = Color(red: 109/255, green: 114/255, blue: 117/255)
+    /// #c7d6d5 — Cool silver sage
+    static let silverSage = Color(red: 199/255, green: 214/255, blue: 213/255)
+    /// #ecebf3 — Soft lavender mist
+    static let lavenderMist = Color(red: 236/255, green: 235/255, blue: 243/255)
 
-    static let accent = Color(red: 0.55, green: 0.75, blue: 1.0)
-    static let accentSubtle = accent.opacity(0.15)
+    // MARK: - Semantic Tokens (Adaptive)
 
-    // Reserved for recording states only
-    static let recordingRed = Color(red: 1.0, green: 0.25, blue: 0.25)
-    static let recordingRedSubtle = recordingRed.opacity(0.15)
+    // Backgrounds
+    static let background = Color(
+        light: lavenderMist,
+        dark: darkForest
+    )
+    static let surface = Color(
+        light: .white,
+        dark: Color(red: 20/255, green: 26/255, blue: 20/255)
+    )
+    static let surfaceElevated = Color(
+        light: .white,
+        dark: Color(red: 28/255, green: 34/255, blue: 28/255)
+    )
+    static let surfaceGlass = Color(
+        light: slate.opacity(0.08),
+        dark: silverSage.opacity(0.06)
+    )
 
-    static let divider = Color.white.opacity(0.08)
-    static let shadow = Color.black.opacity(0.4)
+    // Text
+    static let textPrimary = Color(
+        light: darkForest,
+        dark: lavenderMist
+    )
+    static let textSecondary = Color(
+        light: slate,
+        dark: silverSage
+    )
+    static let textTertiary = Color(
+        light: slate.opacity(0.6),
+        dark: slate
+    )
+
+    // Accent
+    static let accent = Color(
+        light: crimson,
+        dark: Color(red: 220/255, green: 40/255, blue: 55/255)
+    )
+    static let accentSubtle = Color(
+        light: crimson.opacity(0.12),
+        dark: crimson.opacity(0.15)
+    )
+
+    // Recording (uses brand crimson)
+    static let recordingRed = crimson
+    static let recordingRedSubtle = Color(
+        light: crimson.opacity(0.12),
+        dark: crimson.opacity(0.15)
+    )
+
+    // Structural
+    static let divider = Color(
+        light: slate.opacity(0.15),
+        dark: silverSage.opacity(0.08)
+    )
+    static let shadow = Color(
+        light: darkForest.opacity(0.20),
+        dark: darkForest.opacity(0.40)
+    )
+}
+
+// MARK: - Adaptive Color Initializer
+
+extension Color {
+    init(light: Color, dark: Color) {
+        self.init(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(dark)
+                : UIColor(light)
+        })
+    }
 }

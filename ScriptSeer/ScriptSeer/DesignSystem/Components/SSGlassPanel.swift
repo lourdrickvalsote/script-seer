@@ -19,7 +19,7 @@ struct SSGlassPanel<Content: View>: View {
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: SSRadius.lg)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+                            .stroke(SSColors.divider, lineWidth: 0.5)
                     )
             )
     }

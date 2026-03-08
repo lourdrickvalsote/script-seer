@@ -2,8 +2,10 @@ import SwiftUI
 import SwiftData
 
 struct PracticeView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Script.updatedAt, order: .reverse) private var scripts: [Script]
     @State private var selectedScript: Script?
+    @State private var newScript: Script?
 
     var body: some View {
         NavigationStack {
@@ -15,8 +17,12 @@ struct PracticeView: View {
                             icon: "mic.badge.xmark",
                             title: "Practice Mode",
                             subtitle: "Create a script first, then come back to rehearse.",
-                            actionTitle: nil
-                        )
+                            actionTitle: "Create Script"
+                        ) {
+                            let script = Script(title: "Untitled Script", content: "")
+                            modelContext.insert(script)
+                            newScript = script
+                        }
                         Spacer()
                     }
                 } else {
@@ -53,9 +59,11 @@ struct PracticeView: View {
             }
             .background(SSColors.background)
             .navigationTitle("Practice")
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .navigationDestination(item: $selectedScript) { script in
                 PracticeSessionView(script: script)
+            }
+            .navigationDestination(item: $newScript) { script in
+                ScriptEditorView(script: script)
             }
         }
     }

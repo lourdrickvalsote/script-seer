@@ -27,7 +27,6 @@ struct DuplicateVariantSheet: View {
             .background(SSColors.background)
             .navigationTitle("Duplicate as Variant")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

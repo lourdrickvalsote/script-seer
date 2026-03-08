@@ -29,7 +29,6 @@ struct PracticeSessionView: View {
         .background(SSColors.background)
         .navigationTitle("Practice")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .onDisappear { stopTimer() }
     }
 

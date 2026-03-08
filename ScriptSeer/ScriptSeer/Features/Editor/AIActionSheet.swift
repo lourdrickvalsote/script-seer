@@ -25,7 +25,6 @@ struct AIActionSheet: View {
             .background(SSColors.background)
             .navigationTitle("AI Actions")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
