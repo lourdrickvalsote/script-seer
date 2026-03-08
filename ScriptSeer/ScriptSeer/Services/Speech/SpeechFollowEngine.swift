@@ -33,6 +33,11 @@ final class SpeechFollowEngine {
     var debugLog: [String] = []
     var showDebugOverlay: Bool = false
 
+    // Confidence Scroll — adaptive speed from speaking pace
+    var adaptiveSpeed: Double = 40.0 // current smoothed speed in pt/s
+    var speakingWPM: Double = 0.0 // current estimated words per minute
+    var isConfidenceScrollEnabled: Bool = false
+
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
@@ -40,6 +45,12 @@ final class SpeechFollowEngine {
     private var scriptWords: [String] = []
     private let confidenceThreshold: Float = 0.4
     private let maxJumpDistance = 5 // max words to skip on weak confidence
+
+    // Pace tracking
+    private var wordTimestamps: [(index: Int, time: Date)] = []
+    private var lastAdaptiveUpdate: Date = .distantPast
+    private let paceWindowSize = 10 // words to average over
+    private let speedDampingFactor = 0.15 // how quickly speed adjusts (0-1, lower = smoother)
 
     func prepare(scriptContent: String) {
         scriptWords = scriptContent
@@ -178,6 +189,7 @@ final class SpeechFollowEngine {
                     let newIndex = i + 1
                     if newIndex > currentWordIndex {
                         currentWordIndex = newIndex
+                        recordWordAdvance(to: newIndex)
                         debugLog(message: "Strict: matched '\(spoken)' at \(i)")
                     }
                     break
@@ -222,6 +234,7 @@ final class SpeechFollowEngine {
             let newIndex = min(bestMatchIndex + 1, scriptWords.count)
             if newIndex > currentWordIndex {
                 currentWordIndex = newIndex
+                recordWordAdvance(to: newIndex)
                 debugLog(message: "Smart: advanced to word \(currentWordIndex) (score: \(bestMatchScore))")
             }
         }
@@ -238,6 +251,62 @@ final class SpeechFollowEngine {
     var progress: Double {
         guard !scriptWords.isEmpty else { return 0 }
         return Double(currentWordIndex) / Double(scriptWords.count)
+    }
+
+    // MARK: - Confidence Scroll
+
+    private func recordWordAdvance(to newIndex: Int) {
+        let now = Date()
+        wordTimestamps.append((index: newIndex, time: now))
+
+        // Keep only recent timestamps
+        if wordTimestamps.count > paceWindowSize * 2 {
+            wordTimestamps.removeFirst(wordTimestamps.count - paceWindowSize * 2)
+        }
+
+        updateAdaptiveSpeed()
+    }
+
+    private func updateAdaptiveSpeed() {
+        guard isConfidenceScrollEnabled else { return }
+
+        let now = Date()
+        // Don't update too frequently
+        guard now.timeIntervalSince(lastAdaptiveUpdate) >= 0.25 else { return }
+        lastAdaptiveUpdate = now
+
+        // Need at least 2 timestamps to calculate pace
+        guard wordTimestamps.count >= 2 else { return }
+
+        let recentStamps = wordTimestamps.suffix(paceWindowSize)
+        guard let first = recentStamps.first, let last = recentStamps.last else { return }
+
+        let timeDelta = last.time.timeIntervalSince(first.time)
+        guard timeDelta > 0.1 else { return }
+
+        let wordsDelta = Double(last.index - first.index)
+        guard wordsDelta > 0 else { return }
+
+        let currentWPM = (wordsDelta / timeDelta) * 60.0
+        speakingWPM = currentWPM
+
+        // Convert WPM to scroll speed (pt/s)
+        // Average speaking: ~150 WPM maps to ~40 pt/s base speed
+        // Scale linearly: speed = (currentWPM / 150) * 40
+        let targetSpeed = (currentWPM / 150.0) * 40.0
+        let clampedTarget = max(10.0, min(120.0, targetSpeed))
+
+        // Smooth toward target using damping
+        adaptiveSpeed += (clampedTarget - adaptiveSpeed) * speedDampingFactor
+
+        debugLog(message: "Pace: \(Int(currentWPM)) wpm → speed: \(Int(adaptiveSpeed)) pt/s")
+    }
+
+    func resetPaceTracking(baseSpeed: Double) {
+        wordTimestamps = []
+        adaptiveSpeed = baseSpeed
+        speakingWPM = 0
+        lastAdaptiveUpdate = .distantPast
     }
 
     private func debugLog(message: String) {

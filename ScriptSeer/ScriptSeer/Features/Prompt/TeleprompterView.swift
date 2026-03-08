@@ -359,6 +359,25 @@ struct TeleprompterView: View {
 
                 Divider().background(SSColors.divider)
 
+                Toggle("Confidence Scroll", isOn: $speechEngine.isConfidenceScrollEnabled)
+                    .font(SSTypography.subheadline)
+                    .foregroundStyle(SSColors.textPrimary)
+                    .tint(SSColors.accent)
+
+                if speechEngine.isConfidenceScrollEnabled {
+                    HStack {
+                        Text("Speaking pace")
+                            .font(SSTypography.caption)
+                            .foregroundStyle(SSColors.textSecondary)
+                        Spacer()
+                        Text("\(Int(speechEngine.speakingWPM)) wpm → \(Int(speechEngine.adaptiveSpeed)) pt/s")
+                            .font(SSTypography.caption)
+                            .foregroundStyle(SSColors.textTertiary)
+                    }
+                }
+
+                Divider().background(SSColors.divider)
+
                 Toggle("Focus Window", isOn: $focusConfig.isEnabled)
                     .font(SSTypography.subheadline)
                     .foregroundStyle(SSColors.textPrimary)
@@ -430,7 +449,8 @@ struct TeleprompterView: View {
         stopTimer()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
             guard session.state == .prompting else { return }
-            session.scrollOffset += session.scrollSpeed / 60.0
+            let speed = speechEngine.isConfidenceScrollEnabled ? speechEngine.adaptiveSpeed : session.scrollSpeed
+            session.scrollOffset += speed / 60.0
         }
     }
 
@@ -447,6 +467,7 @@ struct TeleprompterView: View {
             Task {
                 let authorized = await speechEngine.requestAuthorization()
                 if authorized {
+                    speechEngine.resetPaceTracking(baseSpeed: session.scrollSpeed)
                     speechEngine.start()
                     SSHaptics.success()
                 } else {

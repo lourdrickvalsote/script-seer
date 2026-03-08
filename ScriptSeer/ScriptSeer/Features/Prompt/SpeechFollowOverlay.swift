@@ -17,6 +17,12 @@ struct SpeechFollowOverlay: View {
 
                 Spacer()
 
+                if engine.isConfidenceScrollEnabled {
+                    Text("\(Int(engine.speakingWPM))wpm")
+                        .font(SSTypography.caption)
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+
                 Text("\(Int(engine.progress * 100))%")
                     .font(SSTypography.caption)
                     .foregroundStyle(.white.opacity(0.6))
@@ -35,9 +41,9 @@ struct SpeechFollowOverlay: View {
 
     private var statusColor: Color {
         switch engine.state {
-        case .idle, .stopped: SSColors.textTertiary
+        case .idle, .stopped: SSColors.slate
         case .listening: SSColors.accent
-        case .following: Color.green
+        case .following: SSColors.silverSage
         case .lowConfidence: Color.orange
         case .manualAssist: SSColors.recordingRed
         }
