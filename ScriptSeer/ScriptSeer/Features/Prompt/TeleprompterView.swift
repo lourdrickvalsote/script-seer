@@ -11,6 +11,7 @@ struct TeleprompterView: View {
     @State private var focusConfig = FocusWindowConfig()
     @State private var currentFocusLine: Int = 0
     @State private var showScrubBar = false
+    @State private var externalDisplay = ExternalDisplayManager()
 
     init(script: Script) {
         self._session = State(initialValue: PromptSession(script: script))
@@ -568,6 +569,20 @@ struct TeleprompterView: View {
                             .font(SSTypography.caption)
                             .foregroundStyle(SSColors.textSecondary)
                     }
+                }
+
+                if externalDisplay.isExternalDisplayConnected {
+                    Divider().background(SSColors.divider)
+
+                    HStack {
+                        Image(systemName: "tv.fill")
+                            .foregroundStyle(SSColors.accent)
+                        Text("External Display Connected")
+                            .font(SSTypography.subheadline)
+                            .foregroundStyle(SSColors.textPrimary)
+                    }
+
+                    // This is a placeholder — removed duplicate HStack below
                 }
 
                 Button("Done") {
