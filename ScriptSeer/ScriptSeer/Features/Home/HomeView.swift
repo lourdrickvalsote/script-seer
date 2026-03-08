@@ -4,6 +4,7 @@ import SwiftData
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Script.updatedAt, order: .reverse) private var scripts: [Script]
+    @State private var showFilePicker = false
 
     private var recentScripts: [Script] {
         Array(scripts.prefix(5))
@@ -25,7 +26,9 @@ struct HomeView: View {
                         QuickActionCard(icon: "plus", title: "New Script", subtitle: "Start writing") {
                             createNewScript()
                         }
-                        QuickActionCard(icon: "doc.badge.arrow.up", title: "Import", subtitle: "From file") {}
+                        QuickActionCard(icon: "doc.badge.arrow.up", title: "Import", subtitle: "From file") {
+                            showFilePicker = true
+                        }
                         QuickActionCard(icon: "play.fill", title: "Quick Prompt", subtitle: "Paste & go") {}
                         QuickActionCard(icon: "video.fill", title: "Record", subtitle: "Camera mode") {}
                     }
@@ -59,6 +62,24 @@ struct HomeView: View {
             .background(SSColors.background)
             .navigationTitle("ScriptSeer")
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .fileImporter(
+                isPresented: $showFilePicker,
+                allowedContentTypes: ImportService.supportedTypes,
+                allowsMultipleSelection: false
+            ) { result in
+                if case .success(let urls) = result, let url = urls.first {
+                    Task {
+                        if let text = try? await ImportService.extractText(from: url) {
+                            await MainActor.run {
+                                let title = ImportService.titleFromFilename(url)
+                                let script = Script(title: title, content: text)
+                                modelContext.insert(script)
+                                SSHaptics.success()
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

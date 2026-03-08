@@ -84,6 +84,7 @@ struct ScriptsView: View {
                         Button(action: { createNewScript() }) {
                             Label("New Script", systemImage: "plus")
                         }
+                        ImportScriptButton()
                         Button(action: { seedDemoScripts() }) {
                             Label("Add Demo Scripts", systemImage: "text.badge.star")
                         }
