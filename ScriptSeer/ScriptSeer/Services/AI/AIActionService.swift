@@ -124,16 +124,27 @@ final class MockAIProvider: AIProvider {
 @Observable
 final class AIActionService {
     var state: AIActionState = .idle
-    var provider: AIProvider = MockAIProvider()
+
+    private var resolvedProvider: AIProvider {
+        let providerType = UserDefaults.standard.string(forKey: "aiProviderType") ?? "mock"
+        guard providerType == "openai" else { return MockAIProvider() }
+
+        let apiKey = UserDefaults.standard.string(forKey: "aiAPIKey") ?? ""
+        guard !apiKey.isEmpty else { return MockAIProvider() }
+
+        let baseURL = UserDefaults.standard.string(forKey: "aiBaseURL") ?? "https://api.openai.com/v1"
+        let model = UserDefaults.standard.string(forKey: "aiModel") ?? "gpt-4o-mini"
+        return OpenAIProvider(apiKey: apiKey, baseURL: baseURL, model: model)
+    }
 
     func execute(action: AIAction, content: String) async -> String? {
         state = .loading
         do {
-            let result = try await provider.process(action: action, content: content)
+            let result = try await resolvedProvider.process(action: action, content: content)
             state = .success(result)
             return result
         } catch {
-            state = .failed("AI processing failed. Please try again.")
+            state = .failed("AI processing failed: \(error.localizedDescription)")
             return nil
         }
     }

@@ -8,6 +8,10 @@ struct SettingsView: View {
     @AppStorage("speechFollowMode") private var speechFollowMode = "Smart"
     @AppStorage("hapticsEnabled") private var hapticsEnabled = true
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+    @AppStorage("aiProviderType") private var aiProviderType = "mock"
+    @AppStorage("aiAPIKey") private var aiAPIKey = ""
+    @AppStorage("aiBaseURL") private var aiBaseURL = "https://api.openai.com/v1"
+    @AppStorage("aiModel") private var aiModel = "gpt-4o-mini"
 
     var body: some View {
         NavigationStack {
@@ -69,6 +73,42 @@ struct SettingsView: View {
                 }
                 .listRowBackground(SSColors.surfaceElevated)
 
+                // AI
+                Section {
+                    Picker("Provider", selection: $aiProviderType) {
+                        Text("Mock (Offline)").tag("mock")
+                        Text("OpenAI / Compatible").tag("openai")
+                    }
+                    .foregroundStyle(SSColors.textPrimary)
+
+                    if aiProviderType == "openai" {
+                        SecureField("API Key", text: $aiAPIKey)
+                            .foregroundStyle(SSColors.textPrimary)
+                            .textContentType(.password)
+                            .autocorrectionDisabled()
+
+                        TextField("Base URL", text: $aiBaseURL)
+                            .foregroundStyle(SSColors.textPrimary)
+                            .textContentType(.URL)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+
+                        TextField("Model", text: $aiModel)
+                            .foregroundStyle(SSColors.textPrimary)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                    }
+                } header: {
+                    Text("AI Actions")
+                        .foregroundStyle(SSColors.textTertiary)
+                } footer: {
+                    if aiProviderType == "openai" {
+                        Text("Works with OpenAI, Ollama, or any OpenAI-compatible API. Your key is stored on-device only.")
+                            .foregroundStyle(SSColors.textTertiary)
+                    }
+                }
+                .listRowBackground(SSColors.surfaceElevated)
+
                 // General
                 Section {
                     Toggle("Haptics", isOn: $hapticsEnabled)
@@ -116,7 +156,6 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(SSColors.background)
             .navigationTitle("Settings")
-            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
 }
