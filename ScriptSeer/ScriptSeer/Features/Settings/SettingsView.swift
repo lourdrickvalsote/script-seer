@@ -1,41 +1,117 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @AppStorage("defaultScrollSpeed") private var defaultScrollSpeed = 40.0
+    @AppStorage("defaultTextSize") private var defaultTextSize = 32.0
+    @AppStorage("defaultLineSpacing") private var defaultLineSpacing = 16.0
+    @AppStorage("defaultCountdown") private var defaultCountdown = 3
+    @AppStorage("speechFollowMode") private var speechFollowMode = "Smart"
+    @AppStorage("hapticsEnabled") private var hapticsEnabled = true
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+
     var body: some View {
         NavigationStack {
             List {
+                // Prompt defaults
                 Section {
-                    SettingsRow(icon: "textformat.size", title: "Prompt Defaults")
-                    SettingsRow(icon: "waveform", title: "Speech Follow")
-                    SettingsRow(icon: "camera", title: "Camera Defaults")
+                    HStack {
+                        Text("Scroll Speed")
+                            .foregroundStyle(SSColors.textPrimary)
+                        Spacer()
+                        Text("\(Int(defaultScrollSpeed)) pt/s")
+                            .foregroundStyle(SSColors.textTertiary)
+                    }
+                    Slider(value: $defaultScrollSpeed, in: 10...120)
+                        .tint(SSColors.accent)
+
+                    HStack {
+                        Text("Text Size")
+                            .foregroundStyle(SSColors.textPrimary)
+                        Spacer()
+                        Text("\(Int(defaultTextSize)) pt")
+                            .foregroundStyle(SSColors.textTertiary)
+                    }
+                    Slider(value: $defaultTextSize, in: 18...72)
+                        .tint(SSColors.accent)
+
+                    HStack {
+                        Text("Line Spacing")
+                            .foregroundStyle(SSColors.textPrimary)
+                        Spacer()
+                        Text("\(Int(defaultLineSpacing)) pt")
+                            .foregroundStyle(SSColors.textTertiary)
+                    }
+                    Slider(value: $defaultLineSpacing, in: 4...40)
+                        .tint(SSColors.accent)
+
+                    Picker("Countdown", selection: $defaultCountdown) {
+                        ForEach([0, 3, 5, 10], id: \.self) { val in
+                            Text(val == 0 ? "None" : "\(val)s").tag(val)
+                        }
+                    }
+                    .foregroundStyle(SSColors.textPrimary)
                 } header: {
-                    Text("Prompting")
+                    Text("Prompt Defaults")
                         .foregroundStyle(SSColors.textTertiary)
                 }
+                .listRowBackground(SSColors.surfaceElevated)
 
+                // Speech follow
                 Section {
-                    SettingsRow(icon: "paintbrush", title: "Appearance")
-                    SettingsRow(icon: "hand.tap", title: "Haptics")
+                    Picker("Default Mode", selection: $speechFollowMode) {
+                        Text("Strict").tag("Strict")
+                        Text("Smart").tag("Smart")
+                    }
+                    .foregroundStyle(SSColors.textPrimary)
+                } header: {
+                    Text("Speech Follow")
+                        .foregroundStyle(SSColors.textTertiary)
+                }
+                .listRowBackground(SSColors.surfaceElevated)
+
+                // General
+                Section {
+                    Toggle("Haptics", isOn: $hapticsEnabled)
+                        .foregroundStyle(SSColors.textPrimary)
+                        .tint(SSColors.accent)
+
+                    Button(action: { hasSeenOnboarding = false }) {
+                        HStack {
+                            Text("Show Onboarding Tips")
+                                .foregroundStyle(SSColors.textPrimary)
+                            Spacer()
+                            Image(systemName: "arrow.counterclockwise")
+                                .foregroundStyle(SSColors.accent)
+                        }
+                    }
                 } header: {
                     Text("General")
                         .foregroundStyle(SSColors.textTertiary)
                 }
+                .listRowBackground(SSColors.surfaceElevated)
 
+                // Pro
                 Section {
-                    SettingsRow(icon: "star", title: "ScriptSeer Pro")
-                    SettingsRow(icon: "arrow.clockwise", title: "Restore Purchases")
+                    NavigationLink(destination: ProUpgradeView()) {
+                        SettingsRow(icon: "star", title: "ScriptSeer Pro")
+                    }
+                    Button(action: {}) {
+                        SettingsRow(icon: "arrow.clockwise", title: "Restore Purchases")
+                    }
                 } header: {
                     Text("Subscription")
                         .foregroundStyle(SSColors.textTertiary)
                 }
+                .listRowBackground(SSColors.surfaceElevated)
 
+                // About
                 Section {
-                    SettingsRow(icon: "questionmark.circle", title: "Help & Support")
-                    SettingsRow(icon: "info.circle", title: "About")
+                    SettingsRow(icon: "info.circle", title: "About ScriptSeer")
                 } header: {
                     Text("More")
                         .foregroundStyle(SSColors.textTertiary)
                 }
+                .listRowBackground(SSColors.surfaceElevated)
             }
             .scrollContentBackground(.hidden)
             .background(SSColors.background)
@@ -69,6 +145,5 @@ private struct SettingsRow: View {
                 .foregroundStyle(SSColors.textTertiary)
         }
         .padding(.vertical, SSSpacing.xxs)
-        .listRowBackground(SSColors.surfaceElevated)
     }
 }

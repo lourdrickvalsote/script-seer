@@ -64,6 +64,27 @@ struct TeleprompterView: View {
             Button("Cancel", role: .cancel) {}
         }
         .onDisappear { stopTimer() }
+        .keyboardShortcut(.space, modifiers: [])
+        .onKeyPress(.space) {
+            session.togglePlayPause()
+            return .handled
+        }
+        .onKeyPress(.upArrow) {
+            session.scrollSpeed = min(session.scrollSpeed + 5, 120)
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            session.scrollSpeed = max(session.scrollSpeed - 5, 10)
+            return .handled
+        }
+        .onKeyPress(.leftArrow) {
+            session.jumpBack()
+            return .handled
+        }
+        .onKeyPress(.escape) {
+            showExitConfirmation = true
+            return .handled
+        }
     }
 
     // MARK: - Idle

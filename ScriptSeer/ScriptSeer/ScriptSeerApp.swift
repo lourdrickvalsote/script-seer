@@ -3,6 +3,8 @@ import SwiftData
 
 @main
 struct ScriptSeerApp: App {
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Script.self,
@@ -20,7 +22,11 @@ struct ScriptSeerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            if hasSeenOnboarding {
+                RootTabView()
+            } else {
+                OnboardingView()
+            }
         }
         .modelContainer(sharedModelContainer)
     }
