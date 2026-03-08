@@ -62,6 +62,8 @@ final class PromptSession {
     var scrollMode: ScrollMode = .manual
     var targetDurationMinutes: Double = 2.0 // for timed mode
     var measuredContentHeight: CGFloat = 0 // set by view after layout
+    var hookModeEnabled: Bool = false
+    var hookLineCount: Int = 3
 
     let script: Script
     let totalContentHeight: CGFloat

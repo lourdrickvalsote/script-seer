@@ -197,9 +197,22 @@ struct TeleprompterView: View {
 
             switch session.displayMode {
             case .paragraph:
-                richPromptText(session.script.content)
-                    .lineSpacing(session.lineSpacing)
-                    .frame(width: textWidth, alignment: .leading)
+                if session.hookModeEnabled {
+                    let paragraphs = session.script.content
+                        .components(separatedBy: .newlines)
+                        .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                    ForEach(Array(paragraphs.enumerated()), id: \.offset) { index, para in
+                        let isHook = index < session.hookLineCount
+                        richPromptText(para, sizeOverride: isHook ? session.textSize * 1.3 : nil)
+                            .lineSpacing(session.lineSpacing)
+                            .frame(width: textWidth, alignment: .leading)
+                            .opacity(isHook ? 1.0 : 0.85)
+                    }
+                } else {
+                    richPromptText(session.script.content)
+                        .lineSpacing(session.lineSpacing)
+                        .frame(width: textWidth, alignment: .leading)
+                }
 
             case .oneLine, .twoLine, .chunk:
                 let lines = CueParser.stripCues(session.script.content)
@@ -208,12 +221,14 @@ struct TeleprompterView: View {
                         paragraph.isEmpty ? [""] : splitIntoLines(paragraph, mode: session.displayMode)
                     }
 
-                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                    let isHook = session.hookModeEnabled && index < session.hookLineCount
                     Text(line)
-                        .font(SSTypography.promptText(size: session.textSize))
+                        .font(SSTypography.promptText(size: isHook ? session.textSize * 1.3 : session.textSize))
                         .foregroundStyle(session.theme.textColor)
                         .lineSpacing(session.lineSpacing)
                         .frame(width: textWidth, alignment: .leading)
+                        .opacity(isHook ? 1.0 : 0.85)
                 }
             }
 
@@ -246,17 +261,18 @@ struct TeleprompterView: View {
     }
 
     /// Renders script content with cue markers styled as colored inline symbols
-    private func richPromptText(_ content: String) -> Text {
+    private func richPromptText(_ content: String, sizeOverride: CGFloat? = nil) -> Text {
+        let size = sizeOverride ?? session.textSize
         let segments = CueParser.parse(content)
         var result = Text("")
         for segment in segments {
             if let cue = segment.cue {
                 result = result + Text(" \(cue.displaySymbol) ")
-                    .font(.system(size: session.textSize * 0.7))
+                    .font(.system(size: size * 0.7))
                     .foregroundColor(cue.promptColor)
             } else {
                 result = result + Text(segment.content)
-                    .font(SSTypography.promptText(size: session.textSize))
+                    .font(SSTypography.promptText(size: size))
                     .foregroundColor(session.theme.textColor)
             }
         }
@@ -509,6 +525,21 @@ struct TeleprompterView: View {
                         session.textSize = preset.textSize
                         session.horizontalMargin = preset.horizontalMargin
                         session.lineSpacing = preset.lineSpacing
+                    }
+                }
+
+                Divider().background(SSColors.divider)
+
+                Toggle("Hook Mode", isOn: $session.hookModeEnabled)
+                    .font(SSTypography.subheadline)
+                    .foregroundStyle(SSColors.textPrimary)
+                    .tint(SSColors.accent)
+
+                if session.hookModeEnabled {
+                    HStack {
+                        Text("First \(session.hookLineCount) lines get 30% larger text")
+                            .font(SSTypography.caption)
+                            .foregroundStyle(SSColors.textSecondary)
                     }
                 }
 
