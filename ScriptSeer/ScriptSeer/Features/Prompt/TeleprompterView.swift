@@ -8,6 +8,8 @@ struct TeleprompterView: View {
     @State private var showExitConfirmation = false
     @State private var speechEngine = SpeechFollowEngine()
     @State private var showSpeechControls = false
+    @State private var focusConfig = FocusWindowConfig()
+    @State private var currentFocusLine: Int = 0
 
     init(script: Script) {
         self._session = State(initialValue: PromptSession(script: script))
@@ -23,7 +25,11 @@ struct TeleprompterView: View {
             case .countdown:
                 countdownOverlay
             case .prompting, .paused:
-                promptContent
+                if focusConfig.isEnabled {
+                    focusWindowContent
+                } else {
+                    promptContent
+                }
             case .completed:
                 completedOverlay
             }
@@ -208,6 +214,60 @@ struct TeleprompterView: View {
         }
     }
 
+    // MARK: - Focus Window
+
+    private var focusWindowContent: some View {
+        let allLines = splitScriptIntoChunks(
+            session.script.content,
+            wordsPerChunk: focusConfig.preset.wordsPerChunk
+        )
+
+        return FocusWindowView(
+            lines: allLines,
+            currentLineIndex: currentFocusLine,
+            config: focusConfig,
+            theme: session.theme,
+            textSize: session.textSize
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            session.togglePlayPause()
+        }
+        .onAppear { startFocusTimer() }
+        .scaleEffect(x: session.isMirrored ? -1 : 1, y: 1)
+    }
+
+    private func splitScriptIntoChunks(_ text: String, wordsPerChunk: Int) -> [String] {
+        let words = text.split(separator: " ").map(String.init)
+        return stride(from: 0, to: words.count, by: wordsPerChunk).map { start in
+            let end = min(start + wordsPerChunk, words.count)
+            return words[start..<end].joined(separator: " ")
+        }
+    }
+
+    private func startFocusTimer() {
+        // Advance focus line based on scroll speed
+        let totalLines = splitScriptIntoChunks(
+            session.script.content,
+            wordsPerChunk: focusConfig.preset.wordsPerChunk
+        ).count
+        guard totalLines > 0 else { return }
+
+        Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { timer in
+            guard session.state == .prompting else { return }
+            if self.currentFocusLine >= totalLines - 1 {
+                timer.invalidate()
+                session.complete()
+                return
+            }
+            // Advance roughly based on speed: higher speed = faster line changes
+            let advanceInterval = max(60.0 / session.scrollSpeed, 0.5)
+            let framesSinceStart = session.scrollOffset / (session.scrollSpeed / 30.0)
+            let targetLine = Int(framesSinceStart / (advanceInterval * 30.0))
+            self.currentFocusLine = min(targetLine, totalLines - 1)
+        }
+    }
+
     // MARK: - Controls
 
     private var promptControls: some View {
@@ -275,6 +335,23 @@ struct TeleprompterView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+
+                Divider().background(SSColors.divider)
+
+                Toggle("Focus Window", isOn: $focusConfig.isEnabled)
+                    .font(SSTypography.subheadline)
+                    .foregroundStyle(SSColors.textPrimary)
+                    .tint(SSColors.accent)
+
+                if focusConfig.isEnabled {
+                    TuneSlider(label: "Vertical Offset", value: $focusConfig.verticalOffset, range: 0.05...0.8, unit: "")
+
+                    GlancePresetPicker(selectedPreset: $focusConfig.preset) { preset in
+                        session.textSize = preset.textSize
+                        session.horizontalMargin = preset.horizontalMargin
+                        session.lineSpacing = preset.lineSpacing
+                    }
                 }
 
                 Button("Done") {
