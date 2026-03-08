@@ -142,6 +142,24 @@ struct TeleprompterView: View {
                 .tint(SSColors.accent)
                 .frame(width: 160)
 
+            // Rig mode (iPad or landscape)
+            Button(action: {
+                session.rigModeEnabled.toggle()
+                if session.rigModeEnabled {
+                    session.isMirrored = true
+                    session.theme = .lightOnDark
+                    session.textSize = SSLayout.isIPad ? 56 : 42
+                    session.horizontalMargin = SSLayout.isIPad ? 60 : 24
+                }
+            }) {
+                HStack(spacing: SSSpacing.xs) {
+                    Image(systemName: session.rigModeEnabled ? "tv.fill" : "tv")
+                    Text("Rig Mode")
+                }
+                .font(SSTypography.subheadline)
+                .foregroundStyle(session.rigModeEnabled ? SSColors.accent : session.theme.textColor.opacity(0.6))
+            }
+
             SSButton("Start", icon: "play.fill", variant: .primary) {
                 startCountdown()
             }

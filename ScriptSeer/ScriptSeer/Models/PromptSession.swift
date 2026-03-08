@@ -64,6 +64,7 @@ final class PromptSession {
     var measuredContentHeight: CGFloat = 0 // set by view after layout
     var hookModeEnabled: Bool = false
     var hookLineCount: Int = 3
+    var rigModeEnabled: Bool = false // landscape-first, mirrored, high contrast
 
     let script: Script
     let totalContentHeight: CGFloat
