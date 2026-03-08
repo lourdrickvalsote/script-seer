@@ -59,7 +59,7 @@ struct ImportScriptButton: View {
                     }
                 }
             }
-        case .failure(let error):
+        case .failure(_):
             errorMessage = "Could not access the file. Please try again."
             showError = true
             SSHaptics.error()

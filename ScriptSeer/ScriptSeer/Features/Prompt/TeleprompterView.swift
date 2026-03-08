@@ -267,21 +267,20 @@ struct TeleprompterView: View {
     }
 
     private func startFocusTimer() {
-        // Advance focus line based on scroll speed
+        stopTimer()
         let totalLines = splitScriptIntoChunks(
             session.script.content,
             wordsPerChunk: focusConfig.preset.wordsPerChunk
         ).count
         guard totalLines > 0 else { return }
 
-        Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { timer in
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { _ in
             guard session.state == .prompting else { return }
             if self.currentFocusLine >= totalLines - 1 {
-                timer.invalidate()
+                self.stopTimer()
                 session.complete()
                 return
             }
-            // Advance roughly based on speed: higher speed = faster line changes
             let advanceInterval = max(60.0 / session.scrollSpeed, 0.5)
             let framesSinceStart = session.scrollOffset / (session.scrollSpeed / 30.0)
             let targetLine = Int(framesSinceStart / (advanceInterval * 30.0))
