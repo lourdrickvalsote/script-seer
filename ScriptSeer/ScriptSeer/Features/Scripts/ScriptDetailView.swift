@@ -4,6 +4,7 @@ struct ScriptDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var script: Script
     @State private var editingTitle = false
+    @State private var editedTitle = ""
     @FocusState private var titleFocused: Bool
 
     var body: some View {
@@ -11,13 +12,16 @@ struct ScriptDetailView: View {
             VStack(alignment: .leading, spacing: SSSpacing.lg) {
                 // Title
                 if editingTitle {
-                    TextField("Script Title", text: $script.title)
+                    TextField("Script Title", text: $editedTitle)
                         .font(SSTypography.title)
                         .foregroundStyle(SSColors.textPrimary)
                         .focused($titleFocused)
                         .onSubmit {
                             editingTitle = false
-                            script.updateTitle(script.title)
+                            let trimmed = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmed.isEmpty && trimmed != script.title {
+                                script.updateTitle(trimmed)
+                            }
                         }
                         .padding(.horizontal, SSSpacing.md)
                 } else {
@@ -26,6 +30,7 @@ struct ScriptDetailView: View {
                         .foregroundStyle(SSColors.textPrimary)
                         .padding(.horizontal, SSSpacing.md)
                         .onTapGesture {
+                            editedTitle = script.title
                             editingTitle = true
                             titleFocused = true
                         }

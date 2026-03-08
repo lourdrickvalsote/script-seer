@@ -82,7 +82,10 @@ final class SpeechFollowEngine {
 
     func stop() {
         audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
+        // Only remove tap if one was installed (recognition was started)
+        if recognitionRequest != nil {
+            audioEngine.inputNode.removeTap(onBus: 0)
+        }
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
         recognitionRequest = nil
@@ -114,18 +117,20 @@ final class SpeechFollowEngine {
         try audioEngine.start()
 
         recognitionTask = speechRecognizer?.recognitionTask(with: request) { [weak self] result, error in
-            guard let self else { return }
-            if let result {
-                self.processResult(result)
-            }
-            if error != nil || (result?.isFinal ?? false) {
-                self.audioEngine.stop()
-                inputNode.removeTap(onBus: 0)
-                self.recognitionRequest = nil
-                self.recognitionTask = nil
-                if self.state == .listening || self.state == .following {
-                    self.state = .lowConfidence
-                    self.debugLog(message: "Recognition ended, falling back")
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if let result {
+                    self.processResult(result)
+                }
+                if error != nil || (result?.isFinal ?? false) {
+                    self.audioEngine.stop()
+                    inputNode.removeTap(onBus: 0)
+                    self.recognitionRequest = nil
+                    self.recognitionTask = nil
+                    if self.state == .listening || self.state == .following {
+                        self.state = .lowConfidence
+                        self.debugLog(message: "Recognition ended, falling back")
+                    }
                 }
             }
         }

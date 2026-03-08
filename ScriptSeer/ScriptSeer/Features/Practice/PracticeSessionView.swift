@@ -190,6 +190,7 @@ struct PracticeSessionView: View {
     private func retryFromLine(_ index: Int) {
         practiceSession.goToLine(index)
         practiceSession.start()
+        stopTimer()
         startTimer()
     }
 }

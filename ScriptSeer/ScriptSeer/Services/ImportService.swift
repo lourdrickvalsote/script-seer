@@ -19,7 +19,13 @@ enum ImportError: LocalizedError {
 }
 
 enum ImportService {
-    static let supportedTypes: [UTType] = [.plainText, .rtf, .pdf, .init("org.openxmlformats.wordprocessingml.document")!]
+    static let supportedTypes: [UTType] = {
+        var types: [UTType] = [.plainText, .rtf, .pdf]
+        if let docx = UTType("org.openxmlformats.wordprocessingml.document") {
+            types.append(docx)
+        }
+        return types
+    }()
 
     static func extractText(from url: URL) async throws -> String {
         let accessing = url.startAccessingSecurityScopedResource()

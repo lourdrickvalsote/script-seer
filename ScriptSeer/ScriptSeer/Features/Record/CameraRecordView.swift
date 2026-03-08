@@ -167,6 +167,7 @@ struct CameraRecordView: View {
         case .recording:
             cameraService.stopRecording()
             promptSession.pause()
+            stopTimer()
             SSHaptics.medium()
         default:
             startCountdown()

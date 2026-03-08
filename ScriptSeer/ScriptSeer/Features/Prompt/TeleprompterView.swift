@@ -165,7 +165,7 @@ struct TeleprompterView: View {
         GeometryReader { geometry in
             ScrollViewReader { proxy in
                 ScrollView(.vertical, showsIndicators: false) {
-                    promptTextView(width: geometry.size.width)
+                    promptTextView(width: geometry.size.width, height: geometry.size.height)
                         .id("promptText")
                 }
                 .offset(y: -session.scrollOffset)
@@ -182,13 +182,13 @@ struct TeleprompterView: View {
     }
 
     @ViewBuilder
-    private func promptTextView(width: CGFloat) -> some View {
+    private func promptTextView(width: CGFloat, height: CGFloat) -> some View {
         let margin = session.horizontalMargin
         let textWidth = width - margin * 2
 
         VStack(alignment: .leading, spacing: session.lineSpacing) {
             // Top padding (start with text at center)
-            Spacer().frame(height: UIScreen.main.bounds.height / 2)
+            Spacer().frame(height: height / 2)
 
             switch session.displayMode {
             case .paragraph:
@@ -215,7 +215,7 @@ struct TeleprompterView: View {
             }
 
             // Bottom padding
-            Spacer().frame(height: UIScreen.main.bounds.height)
+            Spacer().frame(height: height)
         }
         .padding(.horizontal, margin)
     }

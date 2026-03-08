@@ -88,6 +88,9 @@ final class CameraService: NSObject {
     }
 
     func switchCamera() {
+        // Don't switch camera during active recording
+        if case .recording = recordingState { return }
+
         currentPosition = currentPosition == .front ? .back : .front
 
         captureSession.beginConfiguration()
