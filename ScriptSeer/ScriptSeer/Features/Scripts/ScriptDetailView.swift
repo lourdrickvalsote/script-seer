@@ -18,12 +18,9 @@ struct ScriptDetailView: View {
                         .font(SSTypography.title)
                         .foregroundStyle(SSColors.textPrimary)
                         .focused($titleFocused)
-                        .onSubmit {
-                            editingTitle = false
-                            let trimmed = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                            if !trimmed.isEmpty && trimmed != script.title {
-                                script.updateTitle(trimmed)
-                            }
+                        .onSubmit { commitTitleEdit() }
+                        .onChange(of: titleFocused) {
+                            if !titleFocused { commitTitleEdit() }
                         }
                         .padding(.horizontal, SSSpacing.md)
                 } else {
@@ -132,6 +129,14 @@ struct ScriptDetailView: View {
             if let url = exportItems.first as? URL {
                 ShareSheet(items: [url])
             }
+        }
+    }
+
+    private func commitTitleEdit() {
+        editingTitle = false
+        let trimmed = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty && trimmed != script.title {
+            script.updateTitle(trimmed)
         }
     }
 

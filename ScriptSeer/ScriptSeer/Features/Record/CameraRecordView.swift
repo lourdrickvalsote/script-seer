@@ -8,8 +8,11 @@ struct CameraRecordView: View {
     @State private var countdownValue = 3
     @State private var showCountdown = false
     @State private var timer: Timer?
+    @State private var recordingStartTime: Date?
     @State private var recordingDuration: TimeInterval = 0
+    @State private var durationTimer: Timer?
     @State private var showExitConfirmation = false
+    @State private var showShareSheet = false
     @State private var showSettings = false
 
     init(script: Script) {
@@ -68,6 +71,11 @@ struct CameraRecordView: View {
         }
         .navigationBarBackButtonHidden(true)
         .statusBarHidden(true)
+        .sheet(isPresented: $showShareSheet) {
+            if let url = cameraService.lastSavedURL {
+                ShareSheet(items: [url])
+            }
+        }
         .confirmationDialog("Exit Recording?", isPresented: $showExitConfirmation) {
             Button("Exit", role: .destructive) {
                 stopTimer()
@@ -187,7 +195,7 @@ struct CameraRecordView: View {
                     .font(SSTypography.headline)
                     .foregroundStyle(.white)
 
-                HStack(spacing: SSSpacing.md) {
+                HStack(spacing: SSSpacing.sm) {
                     Button(action: {
                         cameraService.resetForNewTake()
                         promptSession.scrollOffset = 0
@@ -195,17 +203,29 @@ struct CameraRecordView: View {
                         Label("New Take", systemImage: "arrow.counterclockwise")
                             .font(SSTypography.subheadline)
                             .foregroundStyle(.white)
-                            .padding(.horizontal, SSSpacing.md)
+                            .padding(.horizontal, SSSpacing.sm)
                             .padding(.vertical, SSSpacing.sm)
                             .background(.ultraThinMaterial)
                             .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+                    }
+
+                    if cameraService.lastSavedURL != nil {
+                        Button(action: { showShareSheet = true }) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                                .font(SSTypography.subheadline)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, SSSpacing.sm)
+                                .padding(.vertical, SSSpacing.sm)
+                                .background(.ultraThinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+                        }
                     }
 
                     Button(action: { dismiss() }) {
                         Label("Done", systemImage: "checkmark")
                             .font(SSTypography.subheadline)
                             .foregroundStyle(SSColors.lavenderMist)
-                            .padding(.horizontal, SSSpacing.md)
+                            .padding(.horizontal, SSSpacing.sm)
                             .padding(.vertical, SSSpacing.sm)
                             .background(SSColors.accent)
                             .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
@@ -373,6 +393,7 @@ struct CameraRecordView: View {
             cameraService.stopRecording()
             promptSession.pause()
             stopScrollTimer()
+            stopDurationTimer()
             SSHaptics.medium()
         case .idle:
             startCountdown()
@@ -428,7 +449,18 @@ struct CameraRecordView: View {
     }
 
     private func startDurationTimer() {
-        // Duration tracked via recordingDuration, updated in scroll timer
+        recordingStartTime = Date()
+        recordingDuration = 0
+        durationTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            if let start = recordingStartTime {
+                recordingDuration = Date().timeIntervalSince(start)
+            }
+        }
+    }
+
+    private func stopDurationTimer() {
+        durationTimer?.invalidate()
+        durationTimer = nil
     }
 
     private func stopScrollTimer() {
@@ -441,10 +473,8 @@ struct CameraRecordView: View {
     }
 
     private var formattedDuration: String {
-        // Calculate from actual recording time based on scroll offset and speed
-        let duration = promptSession.scrollOffset / max(promptSession.scrollSpeed, 1)
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
+        let minutes = Int(recordingDuration) / 60
+        let seconds = Int(recordingDuration) % 60
         return String(format: "%02d:%02d", minutes, seconds)
     }
 }

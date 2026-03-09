@@ -695,6 +695,12 @@ struct TeleprompterView: View {
             guard session.state == .prompting else { return }
             let speed = speechEngine.isConfidenceScrollEnabled ? speechEngine.adaptiveSpeed : session.effectiveScrollSpeed
             session.scrollOffset += speed / 60.0
+
+            // Auto-complete when scrolled past content
+            if session.measuredContentHeight > 0, session.scrollOffset >= session.measuredContentHeight {
+                self.stopTimer()
+                session.complete()
+            }
         }
     }
 

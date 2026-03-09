@@ -8,6 +8,7 @@ struct HomeView: View {
     @State private var showQuickPrompt = false
     @State private var importError: String?
     @State private var showImportError = false
+    @State private var newScript: Script?
 
     private var recentScripts: [Script] {
         Array(scripts.prefix(5))
@@ -102,12 +103,16 @@ struct HomeView: View {
             } message: {
                 Text(importError ?? "Could not import the file.")
             }
+            .navigationDestination(item: $newScript) { script in
+                ScriptEditorView(script: script)
+            }
         }
     }
 
     private func createNewScript() {
         let script = Script()
         modelContext.insert(script)
+        newScript = script
         SSHaptics.light()
     }
 }

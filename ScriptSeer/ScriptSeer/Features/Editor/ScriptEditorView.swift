@@ -124,30 +124,6 @@ struct ScriptEditorView: View {
     private var formattingToolbar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: SSSpacing.xs) {
-                // Text formatting
-                FormatButton(icon: "bold", label: "Bold") {
-                    wrapSelection(with: "**")
-                }
-                FormatButton(icon: "italic", label: "Italic") {
-                    wrapSelection(with: "_")
-                }
-                FormatButton(icon: "underline", label: "Underline") {
-                    wrapSelection(with: "__")
-                }
-
-                Divider()
-                    .frame(height: 24)
-                    .background(SSColors.divider)
-
-                // Headings
-                FormatButton(icon: "number", label: "Heading") {
-                    insertAtLineStart("# ")
-                }
-
-                Divider()
-                    .frame(height: 24)
-                    .background(SSColors.divider)
-
                 // Speaker & Section markers
                 FormatButton(icon: "person.fill", label: "Speaker") {
                     script.updateContent(script.content + "\n[SPEAKER: Name] ")
@@ -191,14 +167,6 @@ struct ScriptEditorView: View {
                 .frame(height: 0.5),
             alignment: .top
         )
-    }
-
-    private func wrapSelection(with marker: String) {
-        script.updateContent(script.content + marker + marker)
-    }
-
-    private func insertAtLineStart(_ prefix: String) {
-        script.updateContent(script.content + "\n" + prefix)
     }
 
     private func insertCue(_ cue: TeleprompterCueType) {

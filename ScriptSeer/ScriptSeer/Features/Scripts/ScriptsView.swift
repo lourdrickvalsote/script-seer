@@ -17,6 +17,9 @@ struct ScriptsView: View {
     @State private var newFolderName = ""
     @State private var showMoveSheet = false
     @State private var scriptToMove: Script?
+    @State private var showRenameFolderAlert = false
+    @State private var renameFolderName = ""
+    @State private var folderToRename: ScriptFolder?
 
     private var filteredScripts: [Script] {
         var filtered: [Script]
@@ -117,10 +120,12 @@ struct ScriptsView: View {
                         }) {
                             Label("New Folder", systemImage: "folder.badge.plus")
                         }
+                        #if DEBUG
                         Divider()
                         Button(action: { seedDemoScripts() }) {
                             Label("Add Demo Scripts", systemImage: "text.badge.star")
                         }
+                        #endif
                     } label: {
                         Image(systemName: "plus")
                             .foregroundStyle(SSColors.accent)
@@ -142,6 +147,11 @@ struct ScriptsView: View {
             .alert("New Folder", isPresented: $showNewFolderAlert) {
                 TextField("Folder name", text: $newFolderName)
                 Button("Create") { createFolder() }
+                Button("Cancel", role: .cancel) {}
+            }
+            .alert("Rename Folder", isPresented: $showRenameFolderAlert) {
+                TextField("Folder name", text: $renameFolderName)
+                Button("Rename") { renameFolder() }
                 Button("Cancel", role: .cancel) {}
             }
             .sheet(isPresented: $showMoveSheet) {
@@ -180,6 +190,13 @@ struct ScriptsView: View {
                         selectedFolder = (selectedFolder?.id == folder.id) ? nil : folder
                     }
                     .contextMenu {
+                        Button {
+                            folderToRename = folder
+                            renameFolderName = folder.name
+                            showRenameFolderAlert = true
+                        } label: {
+                            Label("Rename Folder", systemImage: "pencil")
+                        }
                         Button(role: .destructive) {
                             deleteFolder(folder)
                         } label: {
@@ -221,6 +238,13 @@ struct ScriptsView: View {
         guard !trimmed.isEmpty else { return }
         let folder = ScriptFolder(name: trimmed)
         modelContext.insert(folder)
+        SSHaptics.light()
+    }
+
+    private func renameFolder() {
+        let trimmed = renameFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let folder = folderToRename else { return }
+        folder.name = trimmed
         SSHaptics.light()
     }
 
