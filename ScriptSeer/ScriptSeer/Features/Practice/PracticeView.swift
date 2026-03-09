@@ -83,6 +83,8 @@ struct PracticeView: View {
             .background(SSColors.background)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .tabBar)
+            .preference(key: HideRecordButtonKey.self, value: true)
             .navigationDestination(item: $selectedScript) { script in
                 PracticeSessionView(script: script)
             }
