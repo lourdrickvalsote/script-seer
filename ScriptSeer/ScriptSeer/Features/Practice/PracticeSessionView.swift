@@ -285,6 +285,10 @@ struct PracticeSessionView: View {
         .id(tick)
     }
 
+    private var isLastLine: Bool {
+        practiceSession.currentLineIndex >= practiceSession.lines.count - 1
+    }
+
     private var practiceControls: some View {
         HStack(spacing: SSSpacing.sm) {
             // Stumble
@@ -300,37 +304,67 @@ struct PracticeSessionView: View {
                     .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
             }
 
-            // Next line
-            Button {
-                practiceSession.advanceLine()
-                SSHaptics.light()
-            } label: {
-                HStack(spacing: SSSpacing.xxs) {
-                    Text("Next")
-                        .font(SSTypography.headline)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .bold))
+            if isLastLine {
+                // Finish (replaces Next + Done on last line)
+                Button {
+                    practiceSession.finish()
+                    stopTimer()
+                    stopSpeechFollow()
+                    SSHaptics.success()
+                } label: {
+                    HStack(spacing: SSSpacing.xxs) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Finish")
+                            .font(SSTypography.headline)
+                    }
+                    .foregroundStyle(SSColors.lavenderMist)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(
+                        RoundedRectangle(cornerRadius: SSRadius.md)
+                            .fill(
+                                LinearGradient(
+                                    colors: [SSColors.accent, SSColors.accent.opacity(0.85)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                    )
                 }
-                .foregroundStyle(SSColors.accent)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(SSColors.accentSubtle)
-                .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
-            }
-
-            // Finish
-            Button {
-                practiceSession.finish()
-                stopTimer()
-                stopSpeechFollow()
-                SSHaptics.success()
-            } label: {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(SSColors.textPrimary)
-                    .frame(width: 52, height: 48)
-                    .background(SSColors.surfaceGlass)
+            } else {
+                // Next line
+                Button {
+                    practiceSession.advanceLine()
+                    SSHaptics.light()
+                } label: {
+                    HStack(spacing: SSSpacing.xxs) {
+                        Text("Next")
+                            .font(SSTypography.headline)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .bold))
+                    }
+                    .foregroundStyle(SSColors.accent)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(SSColors.accentSubtle)
                     .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+                }
+
+                // Done
+                Button {
+                    practiceSession.finish()
+                    stopTimer()
+                    stopSpeechFollow()
+                    SSHaptics.success()
+                } label: {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(SSColors.textPrimary)
+                        .frame(width: 52, height: 48)
+                        .background(SSColors.surfaceGlass)
+                        .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+                }
             }
         }
         .padding(.horizontal, SSSpacing.md)
