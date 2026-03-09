@@ -268,10 +268,28 @@ struct CameraRecordView: View {
                         .padding(.horizontal, SSSpacing.md)
                         .frame(maxWidth: .infinity)
                         .id(index)
+                        .background(
+                            GeometryReader { geo in
+                                Color.clear
+                                    .onChange(of: geo.frame(in: .named("scriptScroll")).minY) { _, newY in
+                                        // When this sentence's top edge is near the top of the scroll area,
+                                        // it's the visible sentence — update current position
+                                        if newY >= -10 && newY < 30 && index != speechSentenceIndex {
+                                            speechSentenceIndex = index
+                                            // Set word index to first word of this sentence
+                                            let firstWord = sentenceWordOffset(for: index)
+                                            if speechEngine.currentWordIndex != firstWord {
+                                                speechEngine.currentWordIndex = firstWord
+                                            }
+                                        }
+                                    }
+                            }
+                        )
                     }
                 }
                 .padding(.vertical, SSSpacing.sm)
             }
+            .coordinateSpace(name: "scriptScroll")
             .onChange(of: speechSentenceIndex) { _, newIndex in
                 withAnimation(.easeInOut(duration: 0.4)) {
                     proxy.scrollTo(newIndex, anchor: .top)
@@ -1125,8 +1143,11 @@ struct CameraRecordView: View {
     }
 
     private func startSpeechFollow() {
+        // Preserve user's scroll position as starting point
+        let startWordIndex = speechEngine.currentWordIndex
         speechEngine.mode = followMode == .speechStrict ? .strict : .smart
         speechEngine.prepare(scriptContent: scriptContent)
+        speechEngine.currentWordIndex = startWordIndex
         // Configure audio session for both camera/audio and speech to share
         let audioSession = AVAudioSession.sharedInstance()
         let mode: AVAudioSession.Mode = cameraService.recordingMode == .video ? .videoRecording : .spokenAudio
