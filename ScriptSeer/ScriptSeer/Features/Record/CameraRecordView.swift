@@ -34,7 +34,6 @@ struct CameraRecordView: View {
     @State private var takeSavedAppeared = false
     @State private var speechSentenceIndex: Int = 0
     @State private var smoothScrollY: CGFloat = 0
-    @State private var sentenceHeights: [Int: CGFloat] = [:]
     @State private var deviceOrientation: UIDeviceOrientation = UIDevice.current.orientation
 
     private enum LayoutMode {
@@ -185,9 +184,6 @@ struct CameraRecordView: View {
             }
             if targetSentence != speechSentenceIndex {
                 speechSentenceIndex = targetSentence
-                withAnimation(.easeInOut(duration: 0.4)) {
-                    smoothScrollY = targetScrollY(for: targetSentence)
-                }
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -220,10 +216,9 @@ struct CameraRecordView: View {
                 .padding(.top, 8)
                 .opacity(isRecording ? 1 : 0.6)
 
-            // Smooth-scrolling script text
-            smoothScrollingScript(fontSize: min(promptSession.textSize, 28), alignment: .center, lineLimit: nil)
+            // Scrollable script text — drag to reposition, auto-scrolls with speech follow
+            scrollableScriptOverlay(fontSize: min(promptSession.textSize, 28), alignment: .center)
                 .frame(height: overlayHeight)
-                .clipped()
                 .background(
                     RoundedRectangle(cornerRadius: SSRadius.lg)
                         .fill(.ultraThinMaterial)
@@ -239,6 +234,7 @@ struct CameraRecordView: View {
                                 )
                         )
                 )
+                .clipShape(RoundedRectangle(cornerRadius: SSRadius.lg))
                 .padding(.horizontal, SSSpacing.sm)
                 .padding(.top, SSSpacing.xxs)
 
@@ -247,42 +243,52 @@ struct CameraRecordView: View {
         .padding(.top, 8)
     }
 
-    private func smoothScrollingScript(fontSize: CGFloat, alignment: TextAlignment, lineLimit: Int?) -> some View {
+    private func scrollableScriptOverlay(fontSize: CGFloat, alignment: TextAlignment) -> some View {
         let allSentences = sentences
         let lineSpacing = promptSession.lineSpacing * 0.5
 
-        return VStack(spacing: lineSpacing) {
-            ForEach(Array(allSentences.enumerated()), id: \.offset) { index, sentence in
-                let wordOffset = sentenceWordOffset(for: index)
-                highlightedText(
-                    content: sentence,
-                    globalWordIndex: speechEngine.currentWordIndex,
-                    globalWordOffset: wordOffset,
-                    currentColor: .white,
-                    pastColor: .white.opacity(0.4),
-                    futureColor: .white.opacity(0.7),
-                    fontSize: fontSize,
-                    fontWeight: .medium
-                )
-                .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
-                .multilineTextAlignment(alignment)
-                .minimumScaleFactor(0.8)
-                .padding(.horizontal, SSSpacing.md)
-                .frame(maxWidth: .infinity)
-                .background(
-                    GeometryReader { geo in
-                        Color.clear.preference(
-                            key: SentenceHeightKey.self,
-                            value: [index: geo.size.height]
+        return ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: lineSpacing) {
+                    ForEach(Array(allSentences.enumerated()), id: \.offset) { index, sentence in
+                        let wordOffset = sentenceWordOffset(for: index)
+                        highlightedText(
+                            content: sentence,
+                            globalWordIndex: speechEngine.currentWordIndex,
+                            globalWordOffset: wordOffset,
+                            currentColor: .white,
+                            pastColor: .white.opacity(0.4),
+                            futureColor: .white.opacity(0.7),
+                            fontSize: fontSize,
+                            fontWeight: .medium
                         )
+                        .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
+                        .multilineTextAlignment(alignment)
+                        .minimumScaleFactor(0.8)
+                        .padding(.horizontal, SSSpacing.md)
+                        .frame(maxWidth: .infinity)
+                        .id(index)
                     }
-                )
+                }
+                .padding(.vertical, SSSpacing.sm)
             }
-        }
-        .padding(.vertical, SSSpacing.sm)
-        .offset(y: -smoothScrollY)
-        .onPreferenceChange(SentenceHeightKey.self) { heights in
-            sentenceHeights.merge(heights) { _, new in new }
+            .onChange(of: speechSentenceIndex) { _, newIndex in
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    proxy.scrollTo(newIndex, anchor: .top)
+                }
+            }
+            .onChange(of: smoothScrollY) { _, _ in
+                // For manual scroll mode: map smoothScrollY to sentence index
+                if followMode == .manualScroll {
+                    let targetIdx = sentenceIndexForScrollY(smoothScrollY)
+                    if targetIdx != speechSentenceIndex {
+                        speechSentenceIndex = targetIdx
+                    }
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        proxy.scrollTo(targetIdx, anchor: .top)
+                    }
+                }
+            }
         }
     }
 
@@ -303,14 +309,11 @@ struct CameraRecordView: View {
         return offset
     }
 
-    /// Compute the Y offset to scroll to a given sentence index
-    private func targetScrollY(for sentenceIndex: Int) -> CGFloat {
-        let lineSpacing = promptSession.lineSpacing * 0.5
-        var y: CGFloat = 0
-        for i in 0..<sentenceIndex {
-            y += (sentenceHeights[i] ?? 30) + lineSpacing
-        }
-        return y
+    /// Map a smoothScrollY value to the nearest sentence index (for manual scroll)
+    private func sentenceIndexForScrollY(_ y: CGFloat) -> Int {
+        let avgHeight: CGFloat = 35 // approximate average sentence height
+        let index = Int(y / avgHeight)
+        return max(0, min(index, sentences.count - 1))
     }
 
     // MARK: - Top Bar
@@ -592,9 +595,8 @@ struct CameraRecordView: View {
                 .padding(.top, SSSpacing.sm)
                 .opacity(isRecording ? 1 : 0.6)
 
-            smoothScrollingScript(fontSize: min(promptSession.textSize, 24), alignment: .leading, lineLimit: nil)
+            scrollableScriptOverlay(fontSize: min(promptSession.textSize, 20), alignment: .leading)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .clipped()
         }
         .frame(width: 220)
         .background(
@@ -1349,12 +1351,5 @@ struct CameraRecordView: View {
                 }
             }
         }
-    }
-}
-
-private struct SentenceHeightKey: PreferenceKey {
-    static let defaultValue: [Int: CGFloat] = [:]
-    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
-        value.merge(nextValue()) { _, new in new }
     }
 }
