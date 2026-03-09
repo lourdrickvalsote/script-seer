@@ -24,6 +24,7 @@ struct ScriptsView: View {
     @State private var scriptToDelete: Script?
     @State private var showDeleteFolderConfirmation = false
     @State private var folderToDelete: ScriptFolder?
+    @State private var newScript: Script?
 
     private var filteredScripts: [Script] {
         var filtered: [Script]
@@ -229,6 +230,9 @@ struct ScriptsView: View {
                 )
                 .presentationDetents([.medium])
             }
+            .navigationDestination(item: $newScript) { script in
+                ScriptEditorView(script: script)
+            }
         }
     }
 
@@ -280,6 +284,7 @@ struct ScriptsView: View {
             script.folder = folder
         }
         modelContext.insert(script)
+        newScript = script
         SSHaptics.light()
     }
 

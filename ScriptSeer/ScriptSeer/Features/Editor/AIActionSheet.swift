@@ -34,38 +34,14 @@ struct AIActionSheet: View {
         }
     }
 
-    private var isAIConfigured: Bool {
-        let providerType = UserDefaults.standard.string(forKey: "aiProviderType") ?? "mock"
-        if providerType == "openai" {
-            let key = KeychainHelper.load(forKey: "aiAPIKey") ?? ""
-            return !key.isEmpty
-        }
-        return false
-    }
-
     // MARK: - Action List
 
     private var actionList: some View {
-        ScrollView {
+        let status = aiService.appleIntelligenceStatus
+        return ScrollView {
             VStack(spacing: SSSpacing.sm) {
-                if !isAIConfigured {
-                    SSCard {
-                        VStack(spacing: SSSpacing.sm) {
-                            Image(systemName: "key.fill")
-                                .font(.system(size: 28))
-                                .foregroundStyle(SSColors.accent)
-                            Text("AI Not Configured")
-                                .font(SSTypography.headline)
-                                .foregroundStyle(SSColors.textPrimary)
-                            Text("To use AI actions, go to Settings > AI Actions and configure an OpenAI-compatible API key.")
-                                .font(SSTypography.caption)
-                                .foregroundStyle(SSColors.textSecondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, SSSpacing.md)
-                    }
-                    .padding(.horizontal, SSSpacing.md)
+                if !status.isFunctional {
+                    unavailableBanner(status: status)
                 }
 
                 ForEach(AIAction.allCases) { action in
@@ -99,13 +75,35 @@ struct AIActionSheet: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .disabled(!isAIConfigured)
-                    .opacity(isAIConfigured ? 1.0 : 0.5)
+                    .disabled(!status.isFunctional)
+                    .opacity(status.isFunctional ? 1.0 : 0.5)
                 }
             }
             .padding(.horizontal, SSSpacing.md)
             .padding(.top, SSSpacing.sm)
         }
+    }
+
+    private func unavailableBanner(status: AppleIntelligenceStatus) -> some View {
+        SSCard {
+            VStack(spacing: SSSpacing.sm) {
+                Image(systemName: status.systemImage)
+                    .font(.system(size: 28))
+                    .foregroundStyle(SSColors.accent)
+                Text("Apple Intelligence \(status.label)")
+                    .font(SSTypography.headline)
+                    .foregroundStyle(SSColors.textPrimary)
+                if let detail = status.detail {
+                    Text(detail)
+                        .font(SSTypography.caption)
+                        .foregroundStyle(SSColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, SSSpacing.md)
+        }
+        .padding(.horizontal, SSSpacing.md)
     }
 
     // MARK: - Loading

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @State private var store = StoreManager.shared
     @AppStorage("defaultScrollSpeed") private var defaultScrollSpeed = 40.0
     @AppStorage("defaultTextSize") private var defaultTextSize = 32.0
     @AppStorage("defaultLineSpacing") private var defaultLineSpacing = 16.0
@@ -8,10 +9,8 @@ struct SettingsView: View {
     @AppStorage("speechFollowMode") private var speechFollowMode = "Smart"
     @AppStorage("hapticsEnabled") private var hapticsEnabled = true
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
-    @AppStorage("aiProviderType") private var aiProviderType = "mock"
-    @State private var aiAPIKey = ""
-    @AppStorage("aiBaseURL") private var aiBaseURL = "https://api.openai.com/v1"
-    @AppStorage("aiModel") private var aiModel = "gpt-4o-mini"
+
+    private var aiStatus: AppleIntelligenceStatus { .current() }
 
     var body: some View {
         NavigationStack {
@@ -75,35 +74,33 @@ struct SettingsView: View {
 
                 // AI
                 Section {
-                    Picker("Provider", selection: $aiProviderType) {
-                        Text("Mock (Offline)").tag("mock")
-                        Text("OpenAI / Compatible").tag("openai")
+                    HStack(spacing: SSSpacing.sm) {
+                        Image(systemName: aiStatus.systemImage)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(aiStatus.isAvailable ? SSColors.accent : SSColors.textTertiary)
+                            .frame(width: 28, height: 28)
+                            .background(SSColors.accentSubtle)
+                            .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Apple Intelligence")
+                                .font(SSTypography.body)
+                                .foregroundStyle(SSColors.textPrimary)
+                            Text(aiStatus.label)
+                                .font(SSTypography.caption)
+                                .foregroundStyle(aiStatus.isAvailable ? SSColors.accent : SSColors.textTertiary)
+                        }
                     }
-                    .foregroundStyle(SSColors.textPrimary)
-
-                    if aiProviderType == "openai" {
-                        SecureField("API Key", text: $aiAPIKey)
-                            .foregroundStyle(SSColors.textPrimary)
-                            .textContentType(.password)
-                            .autocorrectionDisabled()
-
-                        TextField("Base URL", text: $aiBaseURL)
-                            .foregroundStyle(SSColors.textPrimary)
-                            .textContentType(.URL)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-
-                        TextField("Model", text: $aiModel)
-                            .foregroundStyle(SSColors.textPrimary)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-                    }
+                    .padding(.vertical, SSSpacing.xxs)
                 } header: {
                     Text("AI Actions")
                         .foregroundStyle(SSColors.textTertiary)
                 } footer: {
-                    if aiProviderType == "openai" {
-                        Text("Works with OpenAI, Ollama, or any OpenAI-compatible API. Your key is stored on-device only.")
+                    if let detail = aiStatus.detail {
+                        Text(detail)
+                            .foregroundStyle(SSColors.textTertiary)
+                    } else {
+                        Text("AI actions use on-device Apple Intelligence. No data leaves your device.")
                             .foregroundStyle(SSColors.textTertiary)
                     }
                 }
@@ -136,10 +133,18 @@ struct SettingsView: View {
                         SettingsRow(icon: "star", title: "ScriptSeer Pro")
                     }
                     Button(action: {
-                        Task { await StoreManager.shared.restorePurchases() }
+                        Task { await store.restorePurchases() }
                     }) {
-                        SettingsRow(icon: "arrow.clockwise", title: "Restore Purchases")
+                        HStack {
+                            SettingsRow(icon: "arrow.clockwise", title: "Restore Purchases")
+                            if store.isLoading {
+                                Spacer()
+                                ProgressView()
+                                    .tint(SSColors.accent)
+                            }
+                        }
                     }
+                    .disabled(store.isLoading)
                 } header: {
                     Text("Subscription")
                         .foregroundStyle(SSColors.textTertiary)
@@ -168,12 +173,6 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(SSColors.background)
             .navigationTitle("Settings")
-            .onAppear {
-                aiAPIKey = KeychainHelper.load(forKey: "aiAPIKey") ?? ""
-            }
-            .onChange(of: aiAPIKey) {
-                KeychainHelper.save(aiAPIKey, forKey: "aiAPIKey")
-            }
         }
     }
 

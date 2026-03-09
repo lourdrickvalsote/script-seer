@@ -38,7 +38,7 @@ final class SpeechFollowEngine {
     var speakingWPM: Double = 0.0 // current estimated words per minute
     var isConfidenceScrollEnabled: Bool = false
 
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+    private let speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
@@ -124,6 +124,11 @@ final class SpeechFollowEngine {
         recognitionRequest = request
 
         let inputNode = audioEngine.inputNode
+        // Remove any existing tap to prevent crash on rapid toggle
+        if tapInstalled {
+            inputNode.removeTap(onBus: 0)
+            tapInstalled = false
+        }
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
             request.append(buffer)
@@ -215,7 +220,7 @@ final class SpeechFollowEngine {
     private func advanceSmart(spokenWords: [String]) {
         // Phrase-level fuzzy matching with tolerance for fillers and paraphrasing
         let recentSpoken = Array(spokenWords.suffix(5))
-        let fillerWords: Set<String> = ["um", "uh", "like", "you know", "so", "well", "basically", "actually"]
+        let fillerWords: Set<String> = Self.fillerWordsForCurrentLocale()
 
         let filteredSpoken = recentSpoken.filter { !fillerWords.contains($0) }
         guard !filteredSpoken.isEmpty else { return }
@@ -327,5 +332,17 @@ final class SpeechFollowEngine {
         let entry = "[\(Date().formatted(.dateTime.hour().minute().second()))] \(message)"
         debugLog.append(entry)
         if debugLog.count > 50 { debugLog.removeFirst() }
+    }
+
+    private static func fillerWordsForCurrentLocale() -> Set<String> {
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        switch lang {
+        case "es": return ["eh", "este", "bueno", "pues", "o sea", "como"]
+        case "fr": return ["euh", "ben", "donc", "genre", "enfin", "voilà"]
+        case "de": return ["äh", "ähm", "also", "halt", "sozusagen", "quasi"]
+        case "ja": return ["えーと", "あの", "その", "まあ", "なんか"]
+        case "pt": return ["é", "tipo", "assim", "né", "bom"]
+        default: return ["um", "uh", "like", "you know", "so", "well", "basically", "actually"]
+        }
     }
 }

@@ -54,6 +54,7 @@ final class CameraService: NSObject {
     private var onRecordingFinished: ((URL?) -> Void)?
 
     func configure() {
+        guard captureSession.inputs.isEmpty else { return }
         captureSession.beginConfiguration()
         captureSession.sessionPreset = resolution.sessionPreset
 
@@ -246,7 +247,11 @@ extension CameraService: AVCaptureFileOutputRecordingDelegate {
                 self?.takeCount += 1
                 self?.lastSavedURL = outputFileURL
                 self?.recordingState = .saved
-                self?.saveToPhotos(url: outputFileURL) { _ in }
+                self?.saveToPhotos(url: outputFileURL) { success in
+                    if !success {
+                        self?.recordingState = .failed("Take recorded but could not be saved to Photos. Check permissions in Settings.")
+                    }
+                }
             }
         }
     }

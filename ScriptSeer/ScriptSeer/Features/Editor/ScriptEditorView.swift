@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct ScriptEditorView: View {
     @Environment(\.modelContext) private var modelContext
@@ -12,6 +13,7 @@ struct ScriptEditorView: View {
     @State private var showReflowConfirm = false
     @State private var showRevisionHistory = false
     @FocusState private var editorFocused: Bool
+    @State private var initialWordCount: Int = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -103,6 +105,10 @@ struct ScriptEditorView: View {
         }
         .onAppear {
             editorFocused = true
+            initialWordCount = script.wordCount
+        }
+        .onDisappear {
+            autoSaveRevisionIfNeeded()
         }
     }
 
@@ -172,6 +178,14 @@ struct ScriptEditorView: View {
     private func insertCue(_ cue: TeleprompterCueType) {
         script.updateContent(script.content + " " + cue.rawValue + " ")
         SSHaptics.light()
+    }
+
+    private func autoSaveRevisionIfNeeded() {
+        let delta = abs(script.wordCount - initialWordCount)
+        // Save a revision if the word count changed by 10+ words
+        guard delta >= 10 else { return }
+        let revision = ScriptRevision(script: script, changeDescription: "Auto-saved")
+        modelContext.insert(revision)
     }
 }
 

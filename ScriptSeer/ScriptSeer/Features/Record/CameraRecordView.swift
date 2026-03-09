@@ -272,6 +272,7 @@ struct CameraRecordView: View {
                     .background(.ultraThinMaterial)
                     .clipShape(Circle())
             }
+            .accessibilityLabel("Exit")
 
             // Pause / Resume (only while recording)
             if cameraService.recordingState == .recording || cameraService.recordingState == .paused {
@@ -283,6 +284,7 @@ struct CameraRecordView: View {
                         .background(.ultraThinMaterial)
                         .clipShape(Circle())
                 }
+                .accessibilityLabel(cameraService.recordingState == .paused ? "Resume" : "Pause")
             }
 
             // Record / Stop button
@@ -303,6 +305,7 @@ struct CameraRecordView: View {
                     }
                 }
             }
+            .accessibilityLabel(cameraService.recordingState == .recording || cameraService.recordingState == .paused ? "Stop Recording" : "Start Recording")
 
             // Switch camera (not during recording)
             if cameraService.recordingState != .recording && cameraService.recordingState != .paused {
@@ -317,6 +320,7 @@ struct CameraRecordView: View {
                         .background(.ultraThinMaterial)
                         .clipShape(Circle())
                 }
+                .accessibilityLabel("Switch Camera")
             }
 
             // Settings (not during recording)
@@ -333,6 +337,7 @@ struct CameraRecordView: View {
                         .background(.ultraThinMaterial)
                         .clipShape(Circle())
                 }
+                .accessibilityLabel("Settings")
             }
         }
         .padding(.bottom, SSSpacing.xl)

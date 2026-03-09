@@ -1,4 +1,7 @@
 import Foundation
+import FoundationModels
+
+// MARK: - AIAction
 
 enum AIAction: String, CaseIterable, Identifiable {
     case makePromptable = "Make Promptable"
@@ -44,6 +47,8 @@ enum AIAction: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - AIActionState
+
 enum AIActionState {
     case idle
     case loading
@@ -51,14 +56,100 @@ enum AIActionState {
     case failed(String)
 }
 
+// MARK: - AIProviderError
+
+enum AIProviderError: LocalizedError {
+    case invalidResponse
+    case notSupported(reason: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidResponse:
+            return "Invalid response from AI service."
+        case .notSupported(let reason):
+            return reason
+        }
+    }
+}
+
+// MARK: - AIProvider
+
 protocol AIProvider {
     func process(action: AIAction, content: String) async throws -> String
 }
 
-// Mock provider for development — simulates AI processing
+// MARK: - AppleIntelligenceStatus
+
+enum AppleIntelligenceStatus: Equatable {
+    case available
+    case notEnabled
+    case deviceNotEligible
+    case modelNotReady
+    case simulator
+
+    var isAvailable: Bool { self == .available }
+
+    /// Whether AI actions can be executed (available on device, or mock in Simulator)
+    var isFunctional: Bool {
+        switch self {
+        case .available, .simulator: true
+        default: false
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .available: "Available"
+        case .notEnabled: "Not Enabled"
+        case .deviceNotEligible: "Not Supported"
+        case .modelNotReady: "Downloading..."
+        case .simulator: "Simulator (Mock)"
+        }
+    }
+
+    var detail: String? {
+        switch self {
+        case .available: nil
+        case .notEnabled: "Enable Apple Intelligence in Settings > Apple Intelligence & Siri."
+        case .deviceNotEligible: "Apple Intelligence requires iPhone 15 Pro or later."
+        case .modelNotReady: "Apple Intelligence model is still downloading."
+        case .simulator: "AI actions use a mock provider in Simulator."
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .available: "checkmark.circle.fill"
+        case .notEnabled: "exclamationmark.circle"
+        case .deviceNotEligible: "xmark.circle"
+        case .modelNotReady: "arrow.down.circle"
+        case .simulator: "hammer.circle"
+        }
+    }
+
+    static func current() -> AppleIntelligenceStatus {
+        #if targetEnvironment(simulator)
+        return .simulator
+        #else
+        switch SystemLanguageModel.default.availability {
+        case .available:
+            return .available
+        case .unavailable(let reason):
+            switch reason {
+            case .deviceNotEligible: return .deviceNotEligible
+            case .appleIntelligenceNotEnabled: return .notEnabled
+            case .modelNotReady: return .modelNotReady
+            @unknown default: return .deviceNotEligible
+            }
+        }
+        #endif
+    }
+}
+
+// MARK: - Mock Provider (Simulator / Previews only)
+
 final class MockAIProvider: AIProvider {
     func process(action: AIAction, content: String) async throws -> String {
-        // Simulate network delay
         try await Task.sleep(for: .seconds(1.5))
 
         switch action {
@@ -67,11 +158,11 @@ final class MockAIProvider: AIProvider {
         case .shorten:
             return shortenText(content)
         case .simplify:
-            return simplifyText(content)
+            return "[Simplified Version]\n\n" + content
         case .conversational:
-            return makeConversational(content)
+            return "So here's the thing — " + content.lowercased().prefix(1).uppercased() + content.dropFirst()
         case .alternateTake:
-            return generateAlternate(content)
+            return content.components(separatedBy: ". ").reversed().joined(separator: ". ")
         case .splitChunks:
             return splitIntoChunks(content)
         }
@@ -90,24 +181,9 @@ final class MockAIProvider: AIProvider {
     private func shortenText(_ text: String) -> String {
         let sentences = text.components(separatedBy: ". ")
         let shortened = sentences.enumerated().compactMap { index, sentence -> String? in
-            // Keep roughly 2/3 of sentences
             index % 3 != 2 ? sentence : nil
         }
         return shortened.joined(separator: ". ") + "."
-    }
-
-    private func simplifyText(_ text: String) -> String {
-        // Simple mock: just return the text with a note
-        return "[Simplified Version]\n\n" + text
-    }
-
-    private func makeConversational(_ text: String) -> String {
-        return "So here's the thing — " + text.lowercased().prefix(1).uppercased() + text.dropFirst()
-    }
-
-    private func generateAlternate(_ text: String) -> String {
-        let sentences = text.components(separatedBy: ". ")
-        return sentences.reversed().joined(separator: ". ")
     }
 
     private func splitIntoChunks(_ text: String) -> String {
@@ -120,21 +196,14 @@ final class MockAIProvider: AIProvider {
     }
 }
 
-// Service that manages the current provider
+// MARK: - Service
+
+@MainActor
 @Observable
 final class AIActionService {
     var state: AIActionState = .idle
-
-    private var resolvedProvider: AIProvider {
-        let providerType = UserDefaults.standard.string(forKey: "aiProviderType") ?? "mock"
-        guard providerType == "openai" else { return MockAIProvider() }
-
-        let apiKey = KeychainHelper.load(forKey: "aiAPIKey") ?? ""
-        guard !apiKey.isEmpty else { return MockAIProvider() }
-
-        let baseURL = UserDefaults.standard.string(forKey: "aiBaseURL") ?? "https://api.openai.com/v1"
-        let model = UserDefaults.standard.string(forKey: "aiModel") ?? "gpt-4o-mini"
-        return OpenAIProvider(apiKey: apiKey, baseURL: baseURL, model: model)
+    var appleIntelligenceStatus: AppleIntelligenceStatus {
+        AppleIntelligenceStatus.current()
     }
 
     func execute(action: AIAction, content: String) async -> String? {
@@ -151,5 +220,14 @@ final class AIActionService {
 
     func reset() {
         state = .idle
+    }
+
+    private var resolvedProvider: AIProvider {
+        #if targetEnvironment(simulator)
+        return MockAIProvider()
+        #else
+        guard AppleIntelligenceStatus.current().isAvailable else { return MockAIProvider() }
+        return FoundationModelsProvider()
+        #endif
     }
 }

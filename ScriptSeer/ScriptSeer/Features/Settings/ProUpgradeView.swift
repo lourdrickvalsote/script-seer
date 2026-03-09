@@ -93,11 +93,21 @@ struct ProUpgradeView: View {
                             .font(SSTypography.caption)
                             .foregroundStyle(SSColors.textTertiary)
 
-                        Button("Restore Purchases") {
+                        Button {
                             Task { await store.restorePurchases() }
+                        } label: {
+                            HStack(spacing: SSSpacing.xs) {
+                                Text("Restore Purchases")
+                                if store.isLoading {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .tint(SSColors.accent)
+                                }
+                            }
                         }
                         .font(SSTypography.caption)
                         .foregroundStyle(SSColors.accent)
+                        .disabled(store.isLoading)
                         .padding(.top, SSSpacing.xs)
 
                         HStack(spacing: SSSpacing.md) {

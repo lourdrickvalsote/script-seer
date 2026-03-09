@@ -203,6 +203,11 @@ struct TeleprompterView: View {
             .onAppear {
                 startScrollTimer()
             }
+            .onChange(of: session.measuredContentHeight) { _, height in
+                if height > 0 && session.state == .prompting && timer == nil {
+                    startScrollTimer()
+                }
+            }
         }
         .clipped()
         .contentShape(Rectangle())
@@ -432,25 +437,25 @@ struct TeleprompterView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: SSSpacing.md) {
                         // Jump back
-                        ControlButton(icon: "gobackward") {
+                        ControlButton(icon: "gobackward", label: "Jump Back") {
                             session.jumpBack()
                             SSHaptics.light()
                         }
 
                         // Jump forward
-                        ControlButton(icon: "goforward") {
+                        ControlButton(icon: "goforward", label: "Jump Forward") {
                             session.jumpForward()
                             SSHaptics.light()
                         }
 
                         // Play / Pause
-                        ControlButton(icon: session.state == .prompting ? "pause.fill" : "play.fill") {
+                        ControlButton(icon: session.state == .prompting ? "pause.fill" : "play.fill", label: session.state == .prompting ? "Pause" : "Play") {
                             session.togglePlayPause()
                             SSHaptics.light()
                         }
 
                         // Scrub toggle
-                        ControlButton(icon: "slider.horizontal.below.rectangle") {
+                        ControlButton(icon: "slider.horizontal.below.rectangle", label: "Scrub Bar") {
                             withAnimation(SSAnimation.standard) {
                                 showScrubBar.toggle()
                             }
@@ -458,12 +463,12 @@ struct TeleprompterView: View {
                         }
 
                         // Speech follow
-                        ControlButton(icon: speechEngine.state == .idle || speechEngine.state == .stopped ? "waveform" : "waveform.badge.minus") {
+                        ControlButton(icon: speechEngine.state == .idle || speechEngine.state == .stopped ? "waveform" : "waveform.badge.minus", label: "Speech Follow") {
                             toggleSpeechFollow()
                         }
 
                         // Tune
-                        ControlButton(icon: "slider.horizontal.3") {
+                        ControlButton(icon: "slider.horizontal.3", label: "Tune Settings") {
                             withAnimation(SSAnimation.standard) {
                                 session.showTuneControls.toggle()
                             }
@@ -471,7 +476,7 @@ struct TeleprompterView: View {
                         }
 
                         // Exit
-                        ControlButton(icon: "xmark") {
+                        ControlButton(icon: "xmark", label: "Exit") {
                             showExitConfirmation = true
                         }
                     }
@@ -748,6 +753,7 @@ struct TeleprompterView: View {
 
 private struct ControlButton: View {
     let icon: String
+    var label: String = ""
     let action: () -> Void
 
     var body: some View {
@@ -757,6 +763,7 @@ private struct ControlButton: View {
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
         }
+        .accessibilityLabel(label.isEmpty ? icon : label)
     }
 }
 
