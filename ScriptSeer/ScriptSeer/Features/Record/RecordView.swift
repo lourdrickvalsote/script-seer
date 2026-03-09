@@ -78,7 +78,7 @@ struct RecordView: View {
                 }
             }
             .background(SSColors.background)
-            .navigationTitle("Record")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

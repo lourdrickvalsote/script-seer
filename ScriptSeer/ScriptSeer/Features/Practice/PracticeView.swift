@@ -81,7 +81,7 @@ struct PracticeView: View {
                 }
             }
             .background(SSColors.background)
-            .navigationTitle("Practice")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(item: $selectedScript) { script in
                 PracticeSessionView(script: script)

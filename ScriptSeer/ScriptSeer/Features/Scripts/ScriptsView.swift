@@ -181,7 +181,7 @@ struct ScriptsView: View {
                 }
             }
             .background(SSColors.background)
-            .navigationTitle("Scripts")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {

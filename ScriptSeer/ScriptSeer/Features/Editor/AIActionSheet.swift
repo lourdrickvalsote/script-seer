@@ -7,6 +7,7 @@ struct AIActionSheet: View {
     let script: Script
     @State private var aiService = AIActionService()
     @State private var selectedAction: AIAction?
+    @State private var aiStatus: AppleIntelligenceStatus?
 
     var body: some View {
         NavigationStack {
@@ -31,13 +32,18 @@ struct AIActionSheet: View {
                         .foregroundStyle(SSColors.textSecondary)
                 }
             }
+            .task {
+                if aiStatus == nil {
+                    aiStatus = AppleIntelligenceStatus.current()
+                }
+            }
         }
     }
 
     // MARK: - Action List
 
     private var actionList: some View {
-        let status = aiService.appleIntelligenceStatus
+        let status = aiStatus ?? .simulator
         return ScrollView {
             VStack(spacing: SSSpacing.sm) {
                 if !status.isFunctional {
@@ -185,6 +191,10 @@ struct AIActionSheet: View {
     // MARK: - Actions
 
     private func executeAction(_ action: AIAction) {
+        guard !script.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            aiService.state = .failed("Script is empty. Add some content first.")
+            return
+        }
         Task {
             _ = await aiService.execute(action: action, content: script.content)
         }

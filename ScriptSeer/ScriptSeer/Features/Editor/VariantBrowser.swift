@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct VariantBrowser: View {
-    let script: Script
+    @Bindable var script: Script
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
