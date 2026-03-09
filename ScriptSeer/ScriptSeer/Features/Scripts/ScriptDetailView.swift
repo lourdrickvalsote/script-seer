@@ -221,25 +221,32 @@ struct ScriptDetailView: View {
                     .tracking(0.5)
 
                 ForEach(script.variants) { variant in
-                    HStack(spacing: SSSpacing.sm) {
-                        Text(variant.title)
-                            .font(SSTypography.body)
-                            .foregroundStyle(SSColors.textPrimary)
-                            .lineLimit(1)
+                    NavigationLink(destination: VariantEditorView(variant: variant)) {
+                        HStack(spacing: SSSpacing.sm) {
+                            Text(variant.title)
+                                .font(SSTypography.body)
+                                .foregroundStyle(SSColors.textPrimary)
+                                .lineLimit(1)
 
-                        Spacer()
+                            Spacer()
 
-                        Text(variant.sourceType.displayName)
-                            .font(SSTypography.caption)
-                            .foregroundStyle(SSColors.accent)
-                            .padding(.horizontal, SSSpacing.xs)
-                            .padding(.vertical, SSSpacing.xxxs)
-                            .background(
-                                Capsule()
-                                    .fill(SSColors.accentSubtle)
-                            )
+                            Text(variant.sourceType.displayName)
+                                .font(SSTypography.caption)
+                                .foregroundStyle(SSColors.accent)
+                                .padding(.horizontal, SSSpacing.xs)
+                                .padding(.vertical, SSSpacing.xxxs)
+                                .background(
+                                    Capsule()
+                                        .fill(SSColors.accentSubtle)
+                                )
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(SSColors.textTertiary)
+                        }
+                        .padding(.vertical, SSSpacing.xxs)
                     }
-                    .padding(.vertical, SSSpacing.xxs)
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, SSSpacing.md)

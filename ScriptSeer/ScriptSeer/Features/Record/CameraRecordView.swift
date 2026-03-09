@@ -617,43 +617,39 @@ struct CameraRecordView: View {
     }
 
     private var landscapeControlsStrip: some View {
-        VStack(spacing: SSSpacing.lg) {
+        VStack(spacing: 0) {
             if isRecording {
-                // Top: exit
-                exitButton
+                // Top: exit + camera flip
+                VStack(spacing: SSSpacing.md) {
+                    exitButton
+                    if cameraService.recordingMode == .video {
+                        cameraFlipButton
+                            .disabled(cameraService.isSwitchingCamera)
+                    }
+                }
 
                 Spacer()
 
-                // Center: recording controls
-                VStack(spacing: SSSpacing.md) {
+                // Bottom: pause above stop — primary actions at thumb reach
+                VStack(spacing: SSSpacing.lg) {
                     pauseResumeButton
                     stopRecordButton
                 }
-
-                Spacer()
-
-                // Bottom: camera flip during recording
-                if cameraService.recordingMode == .video {
-                    cameraFlipButton
-                        .disabled(cameraService.isSwitchingCamera)
-                }
             } else {
-                // Top: exit
-                exitButton
+                // Top: exit + settings
+                VStack(spacing: SSSpacing.md) {
+                    exitButton
+                    settingsButton
+                }
 
                 Spacer()
 
-                // Center: record button
-                recordButton
-
-                Spacer()
-
-                // Bottom: utility buttons grouped together
-                VStack(spacing: SSSpacing.sm) {
+                // Bottom: camera flip above record — primary actions at thumb reach
+                VStack(spacing: SSSpacing.lg) {
                     if cameraService.recordingMode == .video {
                         cameraFlipButton
                     }
-                    settingsButton
+                    recordButton
                 }
             }
         }

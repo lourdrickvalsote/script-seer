@@ -266,7 +266,7 @@ struct ScriptEditorView: View {
     }
 }
 
-private struct FormatButton: View {
+struct FormatButton: View {
     let icon: String?
     var emoji: String? = nil
     let label: String
