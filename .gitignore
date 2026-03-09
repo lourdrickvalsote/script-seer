@@ -2,6 +2,9 @@
 *.xcuserstate
 xcuserdata/
 
+# Build artifacts
+build/
+
 # macOS
 .DS_Store
 
