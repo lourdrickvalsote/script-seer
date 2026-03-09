@@ -72,7 +72,9 @@ final class StoreManager {
         for await result in Transaction.currentEntitlements {
             if case .verified(let transaction) = result {
                 if transaction.productID == monthlyProductID || transaction.productID == annualProductID {
-                    if transaction.revocationDate == nil {
+                    let isNotRevoked = transaction.revocationDate == nil
+                    let isNotExpired = transaction.expirationDate == nil || transaction.expirationDate! > Date()
+                    if isNotRevoked && isNotExpired {
                         hasActiveSubscription = true
 
                         // Check trial status

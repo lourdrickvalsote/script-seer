@@ -101,9 +101,13 @@ struct ProUpgradeView: View {
                         .padding(.top, SSSpacing.xs)
 
                         HStack(spacing: SSSpacing.md) {
-                            Link("Privacy Policy", destination: URL(string: "https://scriptseer.app/privacy")!)
+                            if let privacyURL = URL(string: "https://scriptseer.app/privacy") {
+                                Link("Privacy Policy", destination: privacyURL)
+                            }
                             Text("·").foregroundStyle(SSColors.textTertiary)
-                            Link("Terms of Service", destination: URL(string: "https://scriptseer.app/terms")!)
+                            if let termsURL = URL(string: "https://scriptseer.app/terms") {
+                                Link("Terms of Service", destination: termsURL)
+                            }
                         }
                         .font(SSTypography.caption)
                         .foregroundStyle(SSColors.textTertiary)

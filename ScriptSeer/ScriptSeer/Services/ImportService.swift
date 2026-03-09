@@ -108,14 +108,18 @@ enum ImportService {
     }
 
     private static func extractDOCXFromZip(data: Data) throws -> String {
-        // Simple DOCX text extraction: find XML content and strip tags
-        // This is a basic approach; production would use a proper ZIP library
-        guard let content = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .ascii) else {
+        // DOCX files are ZIP archives containing word/document.xml
+        // Locate the local file header for word/document.xml inside the ZIP
+        guard let xmlData = findFileInZip(data: data, name: "word/document.xml") else {
             throw ImportError.textExtractionFailed
         }
 
-        // Strip XML tags as a fallback
-        let stripped = content.replacingOccurrences(
+        guard let xmlString = String(data: xmlData, encoding: .utf8) else {
+            throw ImportError.textExtractionFailed
+        }
+
+        // Strip XML tags to extract text content
+        let stripped = xmlString.replacingOccurrences(
             of: "<[^>]+>",
             with: " ",
             options: .regularExpression
@@ -129,6 +133,51 @@ enum ImportService {
             throw ImportError.textExtractionFailed
         }
         return cleaned
+    }
+
+    /// Minimal ZIP parser that finds a named file entry and returns its uncompressed data.
+    /// Only supports stored (uncompressed) entries — compressed DOCX files will fail gracefully.
+    private static func findFileInZip(data: Data, name: String) -> Data? {
+        let bytes = [UInt8](data)
+        let nameBytes = [UInt8](name.utf8)
+        let signature: [UInt8] = [0x50, 0x4B, 0x03, 0x04] // PK local file header
+
+        var offset = 0
+        while offset + 30 < bytes.count {
+            // Find next local file header
+            guard bytes[offset] == signature[0],
+                  bytes[offset + 1] == signature[1],
+                  bytes[offset + 2] == signature[2],
+                  bytes[offset + 3] == signature[3] else {
+                offset += 1
+                continue
+            }
+
+            let compressionMethod = UInt16(bytes[offset + 8]) | (UInt16(bytes[offset + 9]) << 8)
+            let compressedSize = Int(UInt32(bytes[offset + 18]) | (UInt32(bytes[offset + 19]) << 8) |
+                                     (UInt32(bytes[offset + 20]) << 16) | (UInt32(bytes[offset + 21]) << 24))
+            let nameLength = Int(UInt16(bytes[offset + 26]) | (UInt16(bytes[offset + 27]) << 8))
+            let extraLength = Int(UInt16(bytes[offset + 28]) | (UInt16(bytes[offset + 29]) << 8))
+
+            let nameStart = offset + 30
+            let nameEnd = nameStart + nameLength
+            guard nameEnd <= bytes.count else { return nil }
+
+            let entryName = Array(bytes[nameStart..<nameEnd])
+            let dataStart = nameEnd + extraLength
+
+            if entryName == nameBytes {
+                // Only support stored (uncompressed) entries
+                guard compressionMethod == 0 else { return nil }
+                let dataEnd = dataStart + compressedSize
+                guard dataEnd <= bytes.count else { return nil }
+                return Data(bytes[dataStart..<dataEnd])
+            }
+
+            // Skip to next entry
+            offset = dataStart + compressedSize
+        }
+        return nil
     }
 
     static func titleFromFilename(_ url: URL) -> String {

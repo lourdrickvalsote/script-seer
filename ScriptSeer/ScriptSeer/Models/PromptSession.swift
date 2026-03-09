@@ -91,6 +91,26 @@ final class PromptSession {
 
         // Default target duration from estimated reading time
         self.targetDurationMinutes = max(0.5, script.estimatedDuration / 60.0)
+
+        // Cache section markers
+        self.sections = Self.computeSections(from: script.content)
+    }
+
+    private static func computeSections(from content: String) -> [(title: String, progress: Double)] {
+        let paragraphs = content
+            .components(separatedBy: "\n\n")
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard paragraphs.count > 1 else { return [] }
+
+        let totalChars = Double(content.count)
+        var charOffset: Double = 0
+
+        return paragraphs.enumerated().map { index, paragraph in
+            let progress = charOffset / totalChars
+            charOffset += Double(paragraph.count) + 2 // +2 for \n\n
+            let preview = String(paragraph.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))
+            return (title: "§\(index + 1): \(preview)…", progress: progress)
+        }
     }
 
     /// Calculated speed for timed mode (points per second to finish in target duration)
@@ -150,23 +170,8 @@ final class PromptSession {
         }
     }
 
-    /// Section titles (paragraphs) with their approximate scroll offsets
-    var sections: [(title: String, progress: Double)] {
-        let paragraphs = script.content
-            .components(separatedBy: "\n\n")
-            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        guard paragraphs.count > 1 else { return [] }
-
-        let totalChars = Double(script.content.count)
-        var charOffset: Double = 0
-
-        return paragraphs.enumerated().map { index, paragraph in
-            let progress = charOffset / totalChars
-            charOffset += Double(paragraph.count) + 2 // +2 for \n\n
-            let preview = String(paragraph.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))
-            return (title: "§\(index + 1): \(preview)…", progress: progress)
-        }
-    }
+    /// Section titles (paragraphs) with their approximate scroll offsets (cached)
+    private(set) var sections: [(title: String, progress: Double)] = []
 
     func complete() {
         if let start = startTime {

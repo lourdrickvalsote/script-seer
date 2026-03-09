@@ -17,6 +17,7 @@ struct CameraRecordView: View {
     @State private var showSettings = false
     @State private var cameraPermissionDenied = false
     @State private var micPermissionDenied = false
+    @State private var recordingDotVisible = true
 
     init(script: Script) {
         self.script = script
@@ -75,6 +76,7 @@ struct CameraRecordView: View {
             }
             cameraService.stopSession()
             stopTimer()
+            stopDurationTimer()
         }
         .navigationBarBackButtonHidden(true)
         .statusBarHidden(true)
@@ -101,6 +103,9 @@ struct CameraRecordView: View {
                 Circle()
                     .fill(cameraService.recordingState == .paused ? SSColors.slate : SSColors.recordingRed)
                     .frame(width: 10, height: 10)
+                    .opacity(cameraService.recordingState == .recording ? (recordingDotVisible ? 1.0 : 0.3) : 1.0)
+                    .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: recordingDotVisible)
+                    .onAppear { recordingDotVisible.toggle() }
 
                 Text(formattedDuration)
                     .font(.system(size: 16, weight: .medium, design: .monospaced))

@@ -28,11 +28,14 @@ struct ScriptSeerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if hasSeenOnboarding {
-                RootTabView()
-            } else {
-                OnboardingView()
+            Group {
+                if hasSeenOnboarding {
+                    RootTabView()
+                } else {
+                    OnboardingView()
+                }
             }
+            .animation(.easeInOut(duration: 0.5), value: hasSeenOnboarding)
         }
         .modelContainer(sharedModelContainer)
     }

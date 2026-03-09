@@ -45,6 +45,7 @@ final class SpeechFollowEngine {
     private var scriptWords: [String] = []
     private let confidenceThreshold: Float = 0.4
     private let maxJumpDistance = 5 // max words to skip on weak confidence
+    private var tapInstalled = false
 
     // Pace tracking
     private var wordTimestamps: [(index: Int, time: Date)] = []
@@ -92,13 +93,15 @@ final class SpeechFollowEngine {
     }
 
     func stop() {
-        let hadRequest = recognitionRequest != nil
         recognitionRequest?.endAudio()
         recognitionRequest = nil
         recognitionTask?.cancel()
         recognitionTask = nil
-        if hadRequest && audioEngine.isRunning {
+        if tapInstalled {
             audioEngine.inputNode.removeTap(onBus: 0)
+            tapInstalled = false
+        }
+        if audioEngine.isRunning {
             audioEngine.stop()
         }
         // Deactivate audio session so other audio can resume
@@ -125,6 +128,7 @@ final class SpeechFollowEngine {
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
             request.append(buffer)
         }
+        tapInstalled = true
 
         audioEngine.prepare()
         try audioEngine.start()
@@ -140,8 +144,11 @@ final class SpeechFollowEngine {
                     if self.recognitionRequest != nil {
                         self.recognitionRequest = nil
                         self.recognitionTask = nil
-                        if self.audioEngine.isRunning {
+                        if self.tapInstalled {
                             inputNode.removeTap(onBus: 0)
+                            self.tapInstalled = false
+                        }
+                        if self.audioEngine.isRunning {
                             self.audioEngine.stop()
                         }
                     }

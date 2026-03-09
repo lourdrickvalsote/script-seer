@@ -28,7 +28,7 @@ struct ScriptsView: View {
     private var filteredScripts: [Script] {
         var filtered: [Script]
         if let folder = selectedFolder {
-            filtered = folder.scripts
+            filtered = scripts.filter { $0.folder?.id == folder.id }
         } else {
             filtered = Array(scripts)
         }
@@ -79,6 +79,20 @@ struct ScriptsView: View {
                                 Text("No results for \"\(searchText)\"")
                                     .font(SSTypography.subheadline)
                                     .foregroundStyle(SSColors.textSecondary)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(.top, SSSpacing.xxl)
+                        } else if filteredScripts.isEmpty && selectedFolder != nil {
+                            VStack(spacing: SSSpacing.md) {
+                                Image(systemName: "folder")
+                                    .font(.system(size: 36, weight: .light))
+                                    .foregroundStyle(SSColors.textTertiary)
+                                Text("No scripts in this folder")
+                                    .font(SSTypography.subheadline)
+                                    .foregroundStyle(SSColors.textSecondary)
+                                Text("Swipe left on a script to move it here.")
+                                    .font(SSTypography.caption)
+                                    .foregroundStyle(SSColors.textTertiary)
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .padding(.top, SSSpacing.xxl)

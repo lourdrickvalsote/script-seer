@@ -34,11 +34,40 @@ struct AIActionSheet: View {
         }
     }
 
+    private var isAIConfigured: Bool {
+        let providerType = UserDefaults.standard.string(forKey: "aiProviderType") ?? "mock"
+        if providerType == "openai" {
+            let key = KeychainHelper.load(forKey: "aiAPIKey") ?? ""
+            return !key.isEmpty
+        }
+        return false
+    }
+
     // MARK: - Action List
 
     private var actionList: some View {
         ScrollView {
             VStack(spacing: SSSpacing.sm) {
+                if !isAIConfigured {
+                    SSCard {
+                        VStack(spacing: SSSpacing.sm) {
+                            Image(systemName: "key.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(SSColors.accent)
+                            Text("AI Not Configured")
+                                .font(SSTypography.headline)
+                                .foregroundStyle(SSColors.textPrimary)
+                            Text("To use AI actions, go to Settings > AI Actions and configure an OpenAI-compatible API key.")
+                                .font(SSTypography.caption)
+                                .foregroundStyle(SSColors.textSecondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, SSSpacing.md)
+                    }
+                    .padding(.horizontal, SSSpacing.md)
+                }
+
                 ForEach(AIAction.allCases) { action in
                     Button(action: {
                         selectedAction = action
@@ -70,6 +99,8 @@ struct AIActionSheet: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .disabled(!isAIConfigured)
+                    .opacity(isAIConfigured ? 1.0 : 0.5)
                 }
             }
             .padding(.horizontal, SSSpacing.md)

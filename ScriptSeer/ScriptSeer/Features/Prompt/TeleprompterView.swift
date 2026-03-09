@@ -74,7 +74,6 @@ struct TeleprompterView: View {
             gameController.onSpeedUp = { session.scrollSpeed = min(session.scrollSpeed + 5, 120) }
             gameController.onSpeedDown = { session.scrollSpeed = max(session.scrollSpeed - 5, 10) }
         }
-        .keyboardShortcut(.space, modifiers: [])
         .onKeyPress(.space) {
             session.togglePlayPause()
             return .handled
@@ -195,16 +194,14 @@ struct TeleprompterView: View {
 
     private var promptContent: some View {
         GeometryReader { geometry in
-            ScrollViewReader { proxy in
-                ScrollView(.vertical, showsIndicators: false) {
-                    promptTextView(width: geometry.size.width, height: geometry.size.height)
-                        .id("promptText")
-                }
-                .offset(y: -session.scrollOffset)
-                .scaleEffect(x: session.isMirrored ? -1 : 1, y: 1)
-                .onAppear {
-                    startScrollTimer()
-                }
+            ScrollView(.vertical, showsIndicators: false) {
+                promptTextView(width: geometry.size.width, height: geometry.size.height)
+                    .id("promptText")
+            }
+            .offset(y: -session.scrollOffset)
+            .scaleEffect(x: session.isMirrored ? -1 : 1, y: 1)
+            .onAppear {
+                startScrollTimer()
             }
         }
         .clipped()
@@ -266,9 +263,13 @@ struct TeleprompterView: View {
         .frame(width: width)
         .background(
             GeometryReader { contentGeometry in
-                Color.clear.onAppear {
-                    session.measuredContentHeight = contentGeometry.size.height
-                }
+                Color.clear
+                    .onAppear {
+                        session.measuredContentHeight = contentGeometry.size.height
+                    }
+                    .onChange(of: contentGeometry.size.height) { _, newHeight in
+                        session.measuredContentHeight = newHeight
+                    }
             }
         )
     }
@@ -699,6 +700,7 @@ struct TeleprompterView: View {
 
     private func startScrollTimer() {
         stopTimer()
+        guard session.measuredContentHeight > 0 else { return }
         timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
             guard session.state == .prompting else { return }
             let speed = speechEngine.isConfidenceScrollEnabled ? speechEngine.adaptiveSpeed : session.effectiveScrollSpeed
