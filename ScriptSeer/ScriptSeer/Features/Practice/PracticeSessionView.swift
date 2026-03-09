@@ -4,7 +4,7 @@ struct PracticeSessionView: View {
     @Environment(\.dismiss) private var dismiss
     @State var practiceSession: PracticeSession
     @State private var timer: Timer?
-    @State private var tick: Int = 0 // forces time display updates
+    @State private var tick: Int = 0
 
     init(script: Script) {
         self._practiceSession = State(initialValue: PracticeSession(script: script))
@@ -12,99 +12,113 @@ struct PracticeSessionView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Stats bar
-            practiceStatsBar
-
             if practiceSession.isActive {
-                // Active practice
                 activePracticeView
             } else if practiceSession.endTime != nil {
-                // Results
                 PracticeResultsView(session: practiceSession, onRetryLine: retryFromLine, onDismiss: { dismiss() })
             } else {
-                // Ready to start
                 readyView
             }
         }
         .background(SSColors.background)
-        .navigationTitle("Practice")
+        .toolbar(.hidden, for: .tabBar)
+        .preference(key: HideRecordButtonKey.self, value: true)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear { stopTimer() }
-    }
-
-    // MARK: - Stats Bar
-
-    private var practiceStatsBar: some View {
-        HStack(spacing: SSSpacing.lg) {
-            Label(practiceSession.formattedElapsedTime, systemImage: "clock")
-            Label("\(practiceSession.stumbles.count) stumbles", systemImage: "exclamationmark.triangle")
-            Spacer()
-            if practiceSession.isActive {
-                Text("Line \(practiceSession.currentLineIndex + 1)/\(practiceSession.lines.count)")
-            }
-        }
-        .font(SSTypography.caption)
-        .foregroundStyle(SSColors.textTertiary)
-        .padding(.horizontal, SSSpacing.md)
-        .padding(.vertical, SSSpacing.xs)
-        .background(SSColors.surface)
-        .id(tick) // force refresh
     }
 
     // MARK: - Ready View
 
     private var readyView: some View {
-        VStack(spacing: SSSpacing.lg) {
+        VStack(spacing: 0) {
             Spacer()
 
-            Image(systemName: "mic.badge.xmark")
-                .font(.system(size: 48, weight: .light))
-                .foregroundStyle(SSColors.textTertiary)
+            VStack(spacing: SSSpacing.lg) {
+                ZStack {
+                    Circle()
+                        .fill(SSColors.accentSubtle)
+                        .frame(width: 88, height: 88)
 
-            Text("Ready to Practice")
-                .font(SSTypography.title)
-                .foregroundStyle(SSColors.textPrimary)
+                    Image(systemName: "text.redaction")
+                        .font(.system(size: 36, weight: .light))
+                        .foregroundStyle(SSColors.accent)
+                }
 
-            Text("Read through your script at your own pace. Tap the stumble button when you trip over a line.")
-                .font(SSTypography.subheadline)
-                .foregroundStyle(SSColors.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, SSSpacing.xl)
+                VStack(spacing: SSSpacing.xs) {
+                    Text("Practice Mode")
+                        .font(SSTypography.largeTitle)
+                        .foregroundStyle(SSColors.textPrimary)
 
-            SSButton("Start Practice", icon: "play.fill", variant: .primary) {
-                practiceSession.start()
-                startTimer()
-                SSHaptics.medium()
+                    Text(practiceSession.script.title)
+                        .font(SSTypography.subheadline)
+                        .foregroundStyle(SSColors.textTertiary)
+                }
+
+                Text("Read through your script at your own pace.\nMark any lines you stumble over for review.")
+                    .font(SSTypography.subheadline)
+                    .foregroundStyle(SSColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
             }
-            .frame(width: 200)
 
             Spacer()
+
+            VStack(spacing: SSSpacing.md) {
+                Button {
+                    practiceSession.start()
+                    startTimer()
+                    SSHaptics.medium()
+                } label: {
+                    HStack(spacing: SSSpacing.xs) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Start Practice")
+                            .font(SSTypography.headline)
+                    }
+                    .foregroundStyle(SSColors.lavenderMist)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: SSRadius.md)
+                            .fill(
+                                LinearGradient(
+                                    colors: [SSColors.accent, SSColors.accent.opacity(0.85)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .shadow(color: SSColors.accent.opacity(0.3), radius: 12, x: 0, y: 4)
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button("Back") { dismiss() }
+                    .font(SSTypography.subheadline)
+                    .foregroundStyle(SSColors.textTertiary)
+            }
+            .padding(.horizontal, SSSpacing.xl)
+            .padding(.bottom, SSSpacing.xxl)
         }
     }
 
     // MARK: - Active Practice
 
     private var activePracticeView: some View {
-        VStack(spacing: SSSpacing.md) {
-            // Script content with current line highlighted
+        VStack(spacing: 0) {
+            // Stats bar
+            practiceStatsBar
+
+            // Script content
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: SSSpacing.sm) {
+                    VStack(alignment: .leading, spacing: SSSpacing.xs) {
                         ForEach(Array(practiceSession.lines.enumerated()), id: \.offset) { index, line in
-                            Text(line)
-                                .font(SSTypography.body)
-                                .foregroundStyle(lineColor(for: index))
-                                .lineSpacing(6)
-                                .padding(.vertical, SSSpacing.xxs)
-                                .id(index)
-                                .onTapGesture {
-                                    practiceSession.goToLine(index)
-                                    SSHaptics.selection()
-                                }
+                            practiceLineView(index: index, line: line)
                         }
                     }
                     .padding(.horizontal, SSSpacing.md)
-                    .padding(.vertical, SSSpacing.sm)
+                    .padding(.vertical, SSSpacing.lg)
                 }
                 .onChange(of: practiceSession.currentLineIndex) { _, newValue in
                     withAnimation {
@@ -114,63 +128,137 @@ struct PracticeSessionView: View {
             }
 
             // Controls
-            HStack(spacing: SSSpacing.lg) {
-                // Stumble
-                Button(action: {
-                    practiceSession.markStumble()
-                    SSHaptics.medium()
-                }) {
-                    Label("Stumble", systemImage: "exclamationmark.triangle")
-                        .font(SSTypography.headline)
-                        .foregroundStyle(SSColors.recordingRed)
-                        .padding(.horizontal, SSSpacing.md)
-                        .padding(.vertical, SSSpacing.sm)
-                        .background(SSColors.recordingRedSubtle)
-                        .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
-                }
-
-                // Next line
-                Button(action: {
-                    practiceSession.advanceLine()
-                    SSHaptics.light()
-                }) {
-                    Label("Next", systemImage: "arrow.down")
-                        .font(SSTypography.headline)
-                        .foregroundStyle(SSColors.accent)
-                        .padding(.horizontal, SSSpacing.md)
-                        .padding(.vertical, SSSpacing.sm)
-                        .background(SSColors.accentSubtle)
-                        .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
-                }
-
-                // Finish
-                Button(action: {
-                    practiceSession.finish()
-                    stopTimer()
-                    SSHaptics.success()
-                }) {
-                    Label("Done", systemImage: "checkmark")
-                        .font(SSTypography.headline)
-                        .foregroundStyle(SSColors.textPrimary)
-                        .padding(.horizontal, SSSpacing.md)
-                        .padding(.vertical, SSSpacing.sm)
-                        .background(SSColors.surfaceGlass)
-                        .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
-                }
-            }
-            .padding(.horizontal, SSSpacing.md)
-            .padding(.bottom, SSSpacing.md)
+            practiceControls
         }
     }
 
-    private func lineColor(for index: Int) -> Color {
-        if index == practiceSession.currentLineIndex {
-            return SSColors.textPrimary
-        } else if index < practiceSession.currentLineIndex {
-            return SSColors.textTertiary
-        } else {
-            return SSColors.textSecondary
+    private func practiceLineView(index: Int, line: String) -> some View {
+        let isCurrent = index == practiceSession.currentLineIndex
+        let isPast = index < practiceSession.currentLineIndex
+        let isStumbled = practiceSession.stumbles.contains { $0.lineIndex == index }
+
+        return HStack(alignment: .top, spacing: SSSpacing.sm) {
+            // Line indicator
+            if isCurrent {
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(SSColors.accent)
+                    .frame(width: 3, height: 20)
+                    .padding(.top, 2)
+            } else if isStumbled {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(SSColors.recordingRed)
+                    .frame(width: 3)
+                    .padding(.top, 3)
+            } else {
+                Color.clear.frame(width: 3)
+            }
+
+            Text(line)
+                .font(SSTypography.body)
+                .foregroundStyle(
+                    isCurrent ? SSColors.textPrimary :
+                    isPast ? SSColors.textTertiary :
+                    SSColors.textSecondary
+                )
+                .lineSpacing(6)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.vertical, SSSpacing.xxs)
+        .padding(.horizontal, SSSpacing.xs)
+        .background(
+            isCurrent ?
+                RoundedRectangle(cornerRadius: SSRadius.sm)
+                    .fill(SSColors.accentSubtle.opacity(0.5)) :
+                nil
+        )
+        .id(index)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            practiceSession.goToLine(index)
+            SSHaptics.selection()
+        }
+    }
+
+    private var practiceStatsBar: some View {
+        HStack {
+            HStack(spacing: SSSpacing.md) {
+                HStack(spacing: SSSpacing.xxs) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 12))
+                    Text(practiceSession.formattedElapsedTime)
+                }
+
+                HStack(spacing: SSSpacing.xxs) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 12))
+                    Text("\(practiceSession.stumbles.count)")
+                }
+            }
+
+            Spacer()
+
+            Text("\(practiceSession.currentLineIndex + 1) / \(practiceSession.lines.count)")
+                .font(.system(size: 12, design: .monospaced))
+        }
+        .font(SSTypography.caption)
+        .foregroundStyle(SSColors.textTertiary)
+        .padding(.horizontal, SSSpacing.md)
+        .padding(.vertical, SSSpacing.sm)
+        .background(SSColors.surface)
+        .id(tick)
+    }
+
+    private var practiceControls: some View {
+        HStack(spacing: SSSpacing.sm) {
+            // Stumble
+            Button {
+                practiceSession.markStumble()
+                SSHaptics.medium()
+            } label: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(SSColors.recordingRed)
+                    .frame(width: 52, height: 48)
+                    .background(SSColors.recordingRedSubtle)
+                    .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+            }
+
+            // Next line
+            Button {
+                practiceSession.advanceLine()
+                SSHaptics.light()
+            } label: {
+                HStack(spacing: SSSpacing.xxs) {
+                    Text("Next")
+                        .font(SSTypography.headline)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .foregroundStyle(SSColors.accent)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(SSColors.accentSubtle)
+                .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+            }
+
+            // Finish
+            Button {
+                practiceSession.finish()
+                stopTimer()
+                SSHaptics.success()
+            } label: {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(SSColors.textPrimary)
+                    .frame(width: 52, height: 48)
+                    .background(SSColors.surfaceGlass)
+                    .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+            }
+        }
+        .padding(.horizontal, SSSpacing.md)
+        .padding(.vertical, SSSpacing.sm)
+        .background(SSColors.surface)
     }
 
     // MARK: - Timer
