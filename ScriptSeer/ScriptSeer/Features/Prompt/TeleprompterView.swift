@@ -38,12 +38,11 @@ struct TeleprompterView: View {
                 completedOverlay
             }
 
-            // Speech follow overlay
+            // Speech follow pill (top-center)
             if speechEngine.state != .idle && speechEngine.state != .stopped {
                 VStack {
                     SpeechFollowOverlay(engine: speechEngine)
-                        .padding(.horizontal, SSSpacing.md)
-                        .padding(.top, SSSpacing.xxl)
+                        .padding(.top, SSSpacing.xl)
                     Spacer()
                 }
             }
@@ -53,11 +52,13 @@ struct TeleprompterView: View {
                 promptControls
             }
 
-            // Tune panel
+            // Tune panel (full-screen sheet)
             if session.showTuneControls {
                 tunePanel
             }
         }
+        .toolbar(.hidden, for: .tabBar)
+        .preference(key: HideRecordButtonKey.self, value: true)
         .statusBarHidden(session.state == .prompting)
         .navigationBarBackButtonHidden(true)
         .confirmationDialog("Exit Prompter?", isPresented: $showExitConfirmation) {
@@ -114,79 +115,150 @@ struct TeleprompterView: View {
     // MARK: - Idle
 
     private var idleOverlay: some View {
-        VStack(spacing: SSSpacing.lg) {
-            Text(session.script.title)
-                .font(SSTypography.title)
-                .foregroundStyle(session.theme.textColor)
+        VStack(spacing: 0) {
+            Spacer()
 
-            Text("\(session.script.wordCount) words · \(session.script.formattedDuration)")
-                .font(SSTypography.subheadline)
-                .foregroundStyle(session.theme.textColor.opacity(0.6))
+            // Title + metadata
+            VStack(spacing: SSSpacing.sm) {
+                Text(session.script.title)
+                    .font(SSTypography.largeTitle)
+                    .foregroundStyle(session.theme.textColor)
+                    .multilineTextAlignment(.center)
 
-            HStack(spacing: SSSpacing.md) {
-                // Display mode picker
-                Menu {
-                    ForEach(PromptDisplayMode.allCases, id: \.self) { mode in
-                        Button(mode.rawValue) { session.displayMode = mode }
-                    }
-                } label: {
-                    Label(session.displayMode.rawValue, systemImage: "text.alignleft")
-                        .font(SSTypography.subheadline)
+                Text("\(session.script.wordCount) words · \(session.script.formattedDuration)")
+                    .font(SSTypography.footnote)
+                    .foregroundStyle(session.theme.textColor.opacity(0.5))
+            }
+
+            Spacer().frame(height: SSSpacing.xxl)
+
+            // Settings card
+            VStack(spacing: 0) {
+                // Display mode
+                idleSettingRow(label: "Display") {
+                    Menu {
+                        ForEach(PromptDisplayMode.allCases, id: \.self) { mode in
+                            Button(mode.rawValue) { session.displayMode = mode }
+                        }
+                    } label: {
+                        HStack(spacing: SSSpacing.xxs) {
+                            Text(session.displayMode.rawValue)
+                                .font(SSTypography.subheadline)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
                         .foregroundStyle(SSColors.accent)
-                        .padding(.horizontal, SSSpacing.sm)
-                        .padding(.vertical, SSSpacing.xs)
-                        .background(SSColors.surfaceGlass)
-                        .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
-                }
-
-                // Theme picker
-                Menu {
-                    ForEach(PromptTheme.allCases, id: \.self) { theme in
-                        Button(theme.rawValue) { session.theme = theme }
                     }
-                } label: {
-                    Label("Theme", systemImage: "paintpalette")
-                        .font(SSTypography.subheadline)
+                }
+
+                idleDivider
+
+                // Theme
+                idleSettingRow(label: "Theme") {
+                    Menu {
+                        ForEach(PromptTheme.allCases, id: \.self) { theme in
+                            Button(theme.rawValue) { session.theme = theme }
+                        }
+                    } label: {
+                        HStack(spacing: SSSpacing.xxs) {
+                            Text(session.theme.rawValue)
+                                .font(SSTypography.subheadline)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
                         .foregroundStyle(SSColors.accent)
-                        .padding(.horizontal, SSSpacing.sm)
-                        .padding(.vertical, SSSpacing.xs)
-                        .background(SSColors.surfaceGlass)
-                        .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
+                    }
+                }
+
+                idleDivider
+
+                // Mirror toggle
+                idleSettingRow(label: "Mirrored") {
+                    Toggle("", isOn: $session.isMirrored)
+                        .labelsHidden()
+                        .tint(SSColors.accent)
+                }
+
+                idleDivider
+
+                // Rig mode
+                idleSettingRow(label: "Rig Mode") {
+                    Toggle("", isOn: Binding(
+                        get: { session.rigModeEnabled },
+                        set: { enabled in
+                            session.rigModeEnabled = enabled
+                            if enabled {
+                                session.isMirrored = true
+                                session.theme = .lightOnDark
+                                session.textSize = SSLayout.isIPad ? 56 : 42
+                                session.horizontalMargin = SSLayout.isIPad ? 60 : 24
+                            }
+                        }
+                    ))
+                    .labelsHidden()
+                    .tint(SSColors.accent)
                 }
             }
+            .background(
+                RoundedRectangle(cornerRadius: SSRadius.lg)
+                    .fill(.ultraThinMaterial)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: SSRadius.lg))
+            .padding(.horizontal, SSSpacing.xl)
 
-            Toggle("Mirrored", isOn: $session.isMirrored)
-                .font(SSTypography.subheadline)
-                .foregroundStyle(session.theme.textColor.opacity(0.8))
-                .tint(SSColors.accent)
-                .frame(width: 160)
+            Spacer()
 
-            // Rig mode (iPad or landscape)
-            Button(action: {
-                session.rigModeEnabled.toggle()
-                if session.rigModeEnabled {
-                    session.isMirrored = true
-                    session.theme = .lightOnDark
-                    session.textSize = SSLayout.isIPad ? 56 : 42
-                    session.horizontalMargin = SSLayout.isIPad ? 60 : 24
+            // Bottom actions
+            VStack(spacing: SSSpacing.md) {
+                Button(action: { startCountdown() }) {
+                    HStack(spacing: SSSpacing.xs) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Begin Reading")
+                            .font(SSTypography.headline)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: SSRadius.md)
+                            .fill(
+                                LinearGradient(
+                                    colors: [SSColors.accent, SSColors.accent.opacity(0.85)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .shadow(color: SSColors.accent.opacity(0.4), radius: 16, x: 0, y: 6)
+                    )
                 }
-            }) {
-                HStack(spacing: SSSpacing.xs) {
-                    Image(systemName: session.rigModeEnabled ? "tv.fill" : "tv")
-                    Text("Rig Mode")
-                }
-                .font(SSTypography.subheadline)
-                .foregroundStyle(session.rigModeEnabled ? SSColors.accent : session.theme.textColor.opacity(0.6))
-            }
+                .buttonStyle(.plain)
 
-            SSButton("Start", icon: "play.fill", variant: .primary) {
-                startCountdown()
+                Button("Back") { dismiss() }
+                    .font(SSTypography.subheadline)
+                    .foregroundStyle(session.theme.textColor.opacity(0.4))
             }
-            .frame(width: 200)
-
-            Button("Back") { dismiss() }
-                .foregroundStyle(session.theme.textColor.opacity(0.5))
+            .padding(.horizontal, SSSpacing.xl)
+            .padding(.bottom, SSSpacing.xxl)
         }
+    }
+
+    private func idleSettingRow<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack {
+            Text(label)
+                .font(SSTypography.subheadline)
+                .foregroundStyle(session.theme.textColor.opacity(0.7))
+            Spacer()
+            content()
+        }
+        .padding(.horizontal, SSSpacing.lg)
+        .padding(.vertical, SSSpacing.sm)
+    }
+
+    private var idleDivider: some View {
+        Divider()
+            .background(session.theme.textColor.opacity(0.1))
+            .padding(.horizontal, SSSpacing.md)
     }
 
     // MARK: - Countdown
@@ -394,250 +466,323 @@ struct TeleprompterView: View {
         VStack {
             Spacer()
 
-            VStack(spacing: SSSpacing.xs) {
+            VStack(spacing: SSSpacing.sm) {
                 // Scrub bar (toggleable)
                 if showScrubBar {
-                    VStack(spacing: SSSpacing.xxs) {
-                        // Section jump menu
-                        if !session.sections.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: SSSpacing.xxs) {
-                                    ForEach(Array(session.sections.enumerated()), id: \.offset) { _, section in
-                                        Button(action: {
-                                            session.scrollProgress = section.progress
-                                            SSHaptics.light()
-                                        }) {
-                                            Text(section.title)
-                                                .font(.system(size: 11))
-                                                .foregroundStyle(.white.opacity(0.8))
-                                                .lineLimit(1)
-                                                .padding(.horizontal, SSSpacing.xs)
-                                                .padding(.vertical, 4)
-                                                .background(.white.opacity(0.15))
-                                                .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
-                                        }
-                                    }
-                                }
-                                .padding(.horizontal, SSSpacing.sm)
-                            }
-                        }
-
-                        // Progress slider
-                        HStack(spacing: SSSpacing.xs) {
-                            Text("\(Int(session.scrollProgress * 100))%")
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(.white.opacity(0.6))
-                                .frame(width: 36)
-
-                            Slider(
-                                value: Binding(
-                                    get: { session.scrollProgress },
-                                    set: { session.scrollProgress = $0 }
-                                ),
-                                in: 0...1
-                            )
-                            .tint(.white.opacity(0.6))
-                        }
-                        .padding(.horizontal, SSSpacing.md)
-                    }
-                    .padding(.vertical, SSSpacing.xs)
-                    .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
-                    .padding(.horizontal, SSSpacing.md)
+                    scrubBar
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
                 // Main control bar
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: SSSpacing.md) {
-                        // Jump back
-                        ControlButton(icon: "gobackward", label: "Jump Back") {
-                            session.jumpBack()
-                            SSHaptics.light()
-                        }
-
-                        // Jump forward
-                        ControlButton(icon: "goforward", label: "Jump Forward") {
-                            session.jumpForward()
-                            SSHaptics.light()
-                        }
-
-                        // Play / Pause
-                        ControlButton(icon: session.state == .prompting ? "pause.fill" : "play.fill", label: session.state == .prompting ? "Pause" : "Play") {
-                            session.togglePlayPause()
-                            SSHaptics.light()
-                        }
-
-                        // Scrub toggle
-                        ControlButton(icon: "slider.horizontal.below.rectangle", label: "Scrub Bar") {
-                            withAnimation(SSAnimation.standard) {
-                                showScrubBar.toggle()
-                            }
-                            SSHaptics.selection()
-                        }
-
-                        // Speech follow
-                        ControlButton(icon: speechEngine.state == .idle || speechEngine.state == .stopped ? "waveform" : "waveform.badge.minus", label: "Speech Follow") {
-                            toggleSpeechFollow()
-                        }
-
-                        // Tune
-                        ControlButton(icon: "slider.horizontal.3", label: "Tune Settings") {
-                            withAnimation(SSAnimation.standard) {
-                                session.showTuneControls.toggle()
-                            }
-                            SSHaptics.selection()
-                        }
-
-                        // Exit
-                        ControlButton(icon: "xmark", label: "Exit") {
-                            showExitConfirmation = true
-                        }
+                HStack(spacing: 0) {
+                    // Jump back
+                    PromptControlButton(icon: "backward.fill", size: 16) {
+                        session.jumpBack()
+                        SSHaptics.light()
                     }
-                    .padding(.vertical, SSSpacing.sm)
-                    .padding(.horizontal, SSSpacing.lg)
+
+                    // Play / Pause — larger, center
+                    PromptControlButton(
+                        icon: session.state == .prompting ? "pause.fill" : "play.fill",
+                        size: 22,
+                        isAccented: true
+                    ) {
+                        session.togglePlayPause()
+                        SSHaptics.light()
+                    }
+
+                    // Jump forward
+                    PromptControlButton(icon: "forward.fill", size: 16) {
+                        session.jumpForward()
+                        SSHaptics.light()
+                    }
+
+                    // Divider
+                    controlDivider
+
+                    // Scrub toggle
+                    PromptControlButton(
+                        icon: "text.line.first.and.arrowtriangle.forward",
+                        size: 16,
+                        isActive: showScrubBar
+                    ) {
+                        withAnimation(SSAnimation.standard) {
+                            showScrubBar.toggle()
+                        }
+                        SSHaptics.selection()
+                    }
+
+                    // Speech follow
+                    PromptControlButton(
+                        icon: "waveform",
+                        size: 16,
+                        isActive: speechEngine.state != .idle && speechEngine.state != .stopped
+                    ) {
+                        toggleSpeechFollow()
+                    }
+
+                    // Tune
+                    PromptControlButton(icon: "slider.horizontal.3", size: 16) {
+                        withAnimation(SSAnimation.standard) {
+                            session.showTuneControls.toggle()
+                        }
+                        SSHaptics.selection()
+                    }
+
+                    // Divider
+                    controlDivider
+
+                    // Exit
+                    PromptControlButton(icon: "xmark", size: 14) {
+                        showExitConfirmation = true
+                    }
                 }
+                .padding(.horizontal, SSSpacing.xs)
+                .padding(.vertical, SSSpacing.xxs)
                 .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: SSRadius.full))
-                .padding(.horizontal, SSSpacing.md)
+                .background(.black.opacity(0.3))
+                .clipShape(RoundedRectangle(cornerRadius: SSRadius.lg))
+                .padding(.horizontal, SSSpacing.lg)
             }
             .padding(.bottom, SSSpacing.lg)
         }
     }
 
+    private var controlDivider: some View {
+        Rectangle()
+            .fill(.white.opacity(0.12))
+            .frame(width: 1, height: 24)
+            .padding(.horizontal, SSSpacing.xxs)
+    }
+
+    private var scrubBar: some View {
+        VStack(spacing: SSSpacing.xs) {
+            // Section chips
+            if !session.sections.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: SSSpacing.xxs) {
+                        ForEach(Array(session.sections.enumerated()), id: \.offset) { _, section in
+                            Button {
+                                session.scrollProgress = section.progress
+                                SSHaptics.light()
+                            } label: {
+                                Text(section.title)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.8))
+                                    .lineLimit(1)
+                                    .padding(.horizontal, SSSpacing.xs)
+                                    .padding(.vertical, 4)
+                                    .background(.white.opacity(0.1))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                    }
+                    .padding(.horizontal, SSSpacing.sm)
+                }
+            }
+
+            // Progress slider
+            HStack(spacing: SSSpacing.sm) {
+                Text("\(Int(session.scrollProgress * 100))%")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .frame(width: 32, alignment: .trailing)
+
+                Slider(
+                    value: Binding(
+                        get: { session.scrollProgress },
+                        set: { session.scrollProgress = $0 }
+                    ),
+                    in: 0...1
+                )
+                .tint(.white.opacity(0.5))
+            }
+            .padding(.horizontal, SSSpacing.md)
+        }
+        .padding(.vertical, SSSpacing.sm)
+        .background(.ultraThinMaterial)
+        .background(.black.opacity(0.3))
+        .clipShape(RoundedRectangle(cornerRadius: SSRadius.lg))
+        .padding(.horizontal, SSSpacing.lg)
+    }
+
     // MARK: - Tune Panel
 
     private var tunePanel: some View {
-        VStack {
-            Spacer()
-
-            VStack(spacing: SSSpacing.md) {
-                Text("Tune")
-                    .font(SSTypography.headline)
-                    .foregroundStyle(SSColors.textPrimary)
-
-                // Scroll mode picker
-                Picker("Scroll Mode", selection: $session.scrollMode) {
-                    ForEach(ScrollMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                if session.scrollMode == .manual {
-                    TuneSlider(label: "Speed", value: $session.scrollSpeed, range: 10...120, unit: "pt/s")
-                } else {
-                    TuneSlider(label: "Duration", value: $session.targetDurationMinutes, range: 0.5...30, unit: "min")
-                    HStack {
-                        Text("Auto speed")
-                            .font(SSTypography.caption)
-                            .foregroundStyle(SSColors.textSecondary)
-                        Spacer()
-                        Text("\(Int(session.timedScrollSpeed)) pt/s")
-                            .font(SSTypography.caption)
-                            .foregroundStyle(SSColors.textTertiary)
-                    }
-                }
-
-                TuneSlider(label: "Text Size", value: $session.textSize, range: 18...72, unit: "pt")
-                TuneSlider(label: "Line Spacing", value: $session.lineSpacing, range: 4...40, unit: "pt")
-                TuneSlider(label: "Margins", value: $session.horizontalMargin, range: 8...80, unit: "pt")
-
-                HStack {
-                    Picker("Display", selection: $session.displayMode) {
-                        ForEach(PromptDisplayMode.allCases, id: \.self) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-
-                Divider().background(SSColors.divider)
-
-                Toggle("Confidence Scroll", isOn: $speechEngine.isConfidenceScrollEnabled)
-                    .font(SSTypography.subheadline)
-                    .foregroundStyle(SSColors.textPrimary)
-                    .tint(SSColors.accent)
-
-                if speechEngine.isConfidenceScrollEnabled {
-                    HStack {
-                        Text("Speaking pace")
-                            .font(SSTypography.caption)
-                            .foregroundStyle(SSColors.textSecondary)
-                        Spacer()
-                        Text("\(Int(speechEngine.speakingWPM)) wpm → \(Int(speechEngine.adaptiveSpeed)) pt/s")
-                            .font(SSTypography.caption)
-                            .foregroundStyle(SSColors.textTertiary)
-                    }
-                }
-
-                Divider().background(SSColors.divider)
-
-                Toggle("Focus Window", isOn: $focusConfig.isEnabled)
-                    .font(SSTypography.subheadline)
-                    .foregroundStyle(SSColors.textPrimary)
-                    .tint(SSColors.accent)
-
-                if focusConfig.isEnabled {
-                    TuneSlider(label: "Vertical Offset", value: $focusConfig.verticalOffset, range: 0.05...0.8, unit: "")
-
-                    GlancePresetPicker(selectedPreset: $focusConfig.preset) { preset in
-                        session.textSize = preset.textSize
-                        session.horizontalMargin = preset.horizontalMargin
-                        session.lineSpacing = preset.lineSpacing
-                    }
-                }
-
-                Divider().background(SSColors.divider)
-
-                Toggle("Hook Mode", isOn: $session.hookModeEnabled)
-                    .font(SSTypography.subheadline)
-                    .foregroundStyle(SSColors.textPrimary)
-                    .tint(SSColors.accent)
-
-                if session.hookModeEnabled {
-                    HStack {
-                        Text("First \(session.hookLineCount) lines get 30% larger text")
-                            .font(SSTypography.caption)
-                            .foregroundStyle(SSColors.textSecondary)
-                    }
-                }
-
-                if externalDisplay.isExternalDisplayConnected || gameController.isControllerConnected {
-                    Divider().background(SSColors.divider)
-
-                    if externalDisplay.isExternalDisplayConnected {
-                        HStack(spacing: SSSpacing.xs) {
-                            Image(systemName: "tv.fill")
-                                .foregroundStyle(SSColors.accent)
-                            Text("External Display Connected")
-                                .font(SSTypography.subheadline)
-                                .foregroundStyle(SSColors.textPrimary)
-                        }
-                    }
-
-                    if gameController.isControllerConnected {
-                        HStack(spacing: SSSpacing.xs) {
-                            Image(systemName: "gamecontroller.fill")
-                                .foregroundStyle(SSColors.accent)
-                            Text(gameController.controllerName)
-                                .font(SSTypography.subheadline)
-                                .foregroundStyle(SSColors.textPrimary)
-                        }
-                    }
-                }
-
-                Button("Done") {
+        ZStack {
+            // Dimming background
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture {
                     withAnimation(SSAnimation.standard) {
                         session.showTuneControls = false
                     }
                 }
-                .foregroundStyle(SSColors.accent)
+
+            VStack(spacing: 0) {
+                Spacer()
+
+                VStack(spacing: 0) {
+                    // Header
+                    HStack {
+                        Text("Settings")
+                            .font(SSTypography.headline)
+                            .foregroundStyle(.white)
+                        Spacer()
+                        Button {
+                            withAnimation(SSAnimation.standard) {
+                                session.showTuneControls = false
+                            }
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .frame(width: 32, height: 32)
+                                .background(.white.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                    }
+                    .padding(.horizontal, SSSpacing.lg)
+                    .padding(.top, SSSpacing.lg)
+                    .padding(.bottom, SSSpacing.md)
+
+                    // Scrollable settings
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: SSSpacing.lg) {
+                            // Scroll section
+                            tuneSection("Scroll") {
+                                Picker("Scroll Mode", selection: $session.scrollMode) {
+                                    ForEach(ScrollMode.allCases, id: \.self) { mode in
+                                        Text(mode.rawValue).tag(mode)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+
+                                if session.scrollMode == .manual {
+                                    TuneSlider(label: "Speed", value: $session.scrollSpeed, range: 10...120, unit: " pt/s")
+                                } else {
+                                    TuneSlider(label: "Duration", value: $session.targetDurationMinutes, range: 0.5...30, unit: " min")
+                                    HStack {
+                                        Text("Auto speed")
+                                            .font(SSTypography.caption)
+                                            .foregroundStyle(.white.opacity(0.4))
+                                        Spacer()
+                                        Text("\(Int(session.timedScrollSpeed)) pt/s")
+                                            .font(SSTypography.caption)
+                                            .foregroundStyle(.white.opacity(0.3))
+                                    }
+                                }
+                            }
+
+                            // Typography section
+                            tuneSection("Typography") {
+                                TuneSlider(label: "Text Size", value: $session.textSize, range: 18...72, unit: " pt")
+                                TuneSlider(label: "Line Spacing", value: $session.lineSpacing, range: 4...40, unit: " pt")
+                                TuneSlider(label: "Margins", value: $session.horizontalMargin, range: 8...80, unit: " pt")
+
+                                Picker("Display", selection: $session.displayMode) {
+                                    ForEach(PromptDisplayMode.allCases, id: \.self) { mode in
+                                        Text(mode.rawValue).tag(mode)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                            }
+
+                            // Speech section
+                            tuneSection("Speech") {
+                                Toggle("Confidence Scroll", isOn: $speechEngine.isConfidenceScrollEnabled)
+                                    .font(SSTypography.subheadline)
+                                    .foregroundStyle(.white.opacity(0.85))
+                                    .tint(SSColors.accent)
+
+                                if speechEngine.isConfidenceScrollEnabled {
+                                    HStack {
+                                        Text("Speaking pace")
+                                            .font(SSTypography.caption)
+                                            .foregroundStyle(.white.opacity(0.4))
+                                        Spacer()
+                                        Text("\(Int(speechEngine.speakingWPM)) wpm → \(Int(speechEngine.adaptiveSpeed)) pt/s")
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .foregroundStyle(.white.opacity(0.3))
+                                    }
+                                }
+                            }
+
+                            // Focus section
+                            tuneSection("Focus") {
+                                Toggle("Focus Window", isOn: $focusConfig.isEnabled)
+                                    .font(SSTypography.subheadline)
+                                    .foregroundStyle(.white.opacity(0.85))
+                                    .tint(SSColors.accent)
+
+                                if focusConfig.isEnabled {
+                                    TuneSlider(label: "Vertical Offset", value: $focusConfig.verticalOffset, range: 0.05...0.8, unit: "")
+
+                                    GlancePresetPicker(selectedPreset: $focusConfig.preset) { preset in
+                                        session.textSize = preset.textSize
+                                        session.horizontalMargin = preset.horizontalMargin
+                                        session.lineSpacing = preset.lineSpacing
+                                    }
+                                }
+                            }
+
+                            // Advanced section
+                            tuneSection("Advanced") {
+                                Toggle("Hook Mode", isOn: $session.hookModeEnabled)
+                                    .font(SSTypography.subheadline)
+                                    .foregroundStyle(.white.opacity(0.85))
+                                    .tint(SSColors.accent)
+
+                                if session.hookModeEnabled {
+                                    Text("First \(session.hookLineCount) lines get 30% larger text")
+                                        .font(SSTypography.caption)
+                                        .foregroundStyle(.white.opacity(0.4))
+                                }
+
+                                if externalDisplay.isExternalDisplayConnected {
+                                    HStack(spacing: SSSpacing.xs) {
+                                        Image(systemName: "tv.fill")
+                                            .foregroundStyle(SSColors.accent)
+                                        Text("External Display Connected")
+                                            .font(SSTypography.subheadline)
+                                            .foregroundStyle(.white.opacity(0.85))
+                                    }
+                                }
+
+                                if gameController.isControllerConnected {
+                                    HStack(spacing: SSSpacing.xs) {
+                                        Image(systemName: "gamecontroller.fill")
+                                            .foregroundStyle(SSColors.accent)
+                                        Text(gameController.controllerName)
+                                            .font(SSTypography.subheadline)
+                                            .foregroundStyle(.white.opacity(0.85))
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, SSSpacing.lg)
+                        .padding(.bottom, SSSpacing.xxl)
+                    }
+                }
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
+                .background(.ultraThinMaterial)
+                .background(.black.opacity(0.6))
+                .clipShape(RoundedRectangle(cornerRadius: SSRadius.xl))
+                .padding(.horizontal, SSSpacing.sm)
+                .padding(.bottom, SSSpacing.sm)
             }
-            .padding(SSSpacing.lg)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: SSRadius.xl))
-            .padding(.horizontal, SSSpacing.md)
-            .padding(.bottom, 100)
+        }
+        .transition(.opacity)
+    }
+
+    private func tuneSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: SSSpacing.sm) {
+            Text(title.uppercased())
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.3))
+                .tracking(1)
+
+            content()
         }
     }
 
@@ -766,19 +911,22 @@ struct TeleprompterView: View {
 
 // MARK: - Sub-components
 
-private struct ControlButton: View {
+private struct PromptControlButton: View {
     let icon: String
-    var label: String = ""
+    var size: CGFloat = 18
+    var isAccented: Bool = false
+    var isActive: Bool = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(.white)
+                .font(.system(size: size, weight: .medium))
+                .foregroundStyle(isAccented ? SSColors.accent : isActive ? SSColors.accent : .white.opacity(0.8))
                 .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
-        .accessibilityLabel(label.isEmpty ? icon : label)
+        .accessibilityLabel(icon)
     }
 }
 
@@ -810,11 +958,11 @@ private struct TuneSlider: View {
             HStack {
                 Text(label)
                     .font(SSTypography.caption)
-                    .foregroundStyle(SSColors.textSecondary)
+                    .foregroundStyle(.white.opacity(0.5))
                 Spacer()
                 Text("\(Int(value))\(unit)")
-                    .font(SSTypography.caption)
-                    .foregroundStyle(SSColors.textTertiary)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.35))
             }
             Slider(value: $value, in: range)
                 .tint(SSColors.accent)

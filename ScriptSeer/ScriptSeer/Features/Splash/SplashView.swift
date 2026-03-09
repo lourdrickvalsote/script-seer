@@ -11,6 +11,7 @@ struct SplashView: View {
     @State private var iconBlur: CGFloat = 20
     @State private var iconScale: CGFloat = 0.6
     @State private var iconOpacity: Double = 0
+    @State private var iconParallax = false
     @State private var wordmarkOpacity: Double = 0
     @State private var wordmarkOffset: CGFloat = 12
     @State private var dividerWidth: CGFloat = 0
@@ -40,12 +41,13 @@ struct SplashView: View {
 
                 // Icon + wordmark composition
                 VStack(spacing: SSSpacing.lg) {
-                    Image(systemName: "doc.text.viewfinder")
-                        .font(.system(size: 72, weight: .light))
-                        .foregroundStyle(SSColors.accent)
-                        .blur(radius: iconBlur)
-                        .scaleEffect(iconScale)
-                        .opacity(iconOpacity)
+                    SplashIcon(
+                        blur: iconBlur,
+                        scale: iconScale,
+                        opacity: iconOpacity,
+                        animate: iconParallax,
+                        reduceMotion: reduceMotion
+                    )
 
                     VStack(spacing: SSSpacing.xs) {
                         HStack(spacing: 0) {
@@ -105,6 +107,7 @@ struct SplashView: View {
             iconScale = 1.0
             iconOpacity = 1.0
         }
+        iconParallax = true
 
         // Phase 3: Wordmark reveals (1.0s–1.6s)
         try? await Task.sleep(for: .milliseconds(600))

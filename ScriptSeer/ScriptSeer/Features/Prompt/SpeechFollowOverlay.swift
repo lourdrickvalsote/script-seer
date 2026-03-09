@@ -4,47 +4,45 @@ struct SpeechFollowOverlay: View {
     let engine: SpeechFollowEngine
 
     var body: some View {
-        VStack {
-            // Status indicator
-            HStack(spacing: SSSpacing.xs) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 8, height: 8)
+        HStack(spacing: SSSpacing.xs) {
+            // Pulsing dot
+            Circle()
+                .fill(statusColor)
+                .frame(width: 6, height: 6)
+                .overlay(
+                    Circle()
+                        .fill(statusColor.opacity(0.4))
+                        .frame(width: 12, height: 12)
+                        .opacity(engine.state == .following ? 1 : 0)
+                        .scaleEffect(engine.state == .following ? 1.5 : 1)
+                        .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: engine.state)
+                )
 
-                Text(statusText)
-                    .font(SSTypography.caption)
-                    .foregroundStyle(.white.opacity(0.8))
+            Text(statusText)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.85))
 
-                Spacer()
-
-                if engine.isConfidenceScrollEnabled {
-                    Text("\(Int(engine.speakingWPM))wpm")
-                        .font(SSTypography.caption)
-                        .foregroundStyle(.white.opacity(0.6))
-                }
-
-                Text("\(Int(engine.progress * 100))%")
-                    .font(SSTypography.caption)
-                    .foregroundStyle(.white.opacity(0.6))
-            }
-            .padding(.horizontal, SSSpacing.sm)
-            .padding(.vertical, SSSpacing.xs)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
-
-            // Debug overlay
-            if engine.showDebugOverlay {
-                debugView
+            if engine.isConfidenceScrollEnabled {
+                Text("·")
+                    .foregroundStyle(.white.opacity(0.3))
+                Text("\(Int(engine.speakingWPM)) wpm")
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.5))
             }
         }
+        .padding(.horizontal, SSSpacing.sm)
+        .padding(.vertical, 6)
+        .background(.black.opacity(0.5))
+        .background(.ultraThinMaterial)
+        .clipShape(Capsule())
     }
 
     private var statusColor: Color {
         switch engine.state {
-        case .idle, .stopped: SSColors.slate
+        case .idle, .stopped: .gray
         case .listening: SSColors.accent
-        case .following: SSColors.silverSage
-        case .lowConfidence: Color.orange
+        case .following: .green
+        case .lowConfidence: .orange
         case .manualAssist: SSColors.recordingRed
         }
     }
@@ -52,33 +50,11 @@ struct SpeechFollowOverlay: View {
     private var statusText: String {
         switch engine.state {
         case .idle: "Ready"
-        case .listening: "Listening..."
-        case .following: "\(engine.mode.rawValue) · Following"
+        case .listening: "Listening"
+        case .following: "Following"
         case .lowConfidence: "Low Confidence"
-        case .manualAssist: "Manual Assist"
+        case .manualAssist: "Manual"
         case .stopped: "Stopped"
         }
-    }
-
-    private var debugView: some View {
-        VStack(alignment: .leading, spacing: SSSpacing.xxs) {
-            Text("Debug — Confidence: \(String(format: "%.2f", engine.confidence))")
-                .font(SSTypography.caption)
-                .foregroundStyle(.white.opacity(0.7))
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(engine.debugLog.suffix(10), id: \.self) { entry in
-                        Text(entry)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.5))
-                    }
-                }
-            }
-            .frame(maxHeight: 120)
-        }
-        .padding(SSSpacing.xs)
-        .background(Color.black.opacity(0.7))
-        .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
     }
 }

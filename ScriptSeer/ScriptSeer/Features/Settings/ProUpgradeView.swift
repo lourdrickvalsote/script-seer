@@ -48,31 +48,35 @@ struct ProUpgradeView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(SSColors.textSecondary)
                         .frame(width: 30, height: 30)
-                        .background(SSColors.surfaceGlass)
+                        .background(.ultraThinMaterial)
                         .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+                        )
                 }
             }
             .padding(.horizontal, SSSpacing.md)
             .padding(.top, SSSpacing.xs)
 
-            Spacer(minLength: SSSpacing.sm)
+            Spacer(minLength: SSSpacing.xs)
 
             // Hero
             heroSection
 
-            Spacer(minLength: SSSpacing.lg)
+            Spacer(minLength: SSSpacing.md)
 
             // Benefits
             benefitsSection
                 .padding(.horizontal, SSSpacing.lg)
 
-            Spacer(minLength: SSSpacing.lg)
+            Spacer(minLength: SSSpacing.md)
 
             // Plan cards
             planCardsSection
                 .padding(.horizontal, SSSpacing.md)
 
-            Spacer(minLength: SSSpacing.lg)
+            Spacer(minLength: SSSpacing.md)
 
             // CTA + footer
             ctaSection
@@ -96,83 +100,113 @@ struct ProUpgradeView: View {
     private var heroSection: some View {
         VStack(spacing: SSSpacing.sm) {
             ZStack {
-                // Radial glow disc
+                // Large pulsing aura
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [SSColors.accent.opacity(0.18), SSColors.accent.opacity(0.04), Color.clear],
+                            colors: [
+                                SSColors.accent.opacity(0.35),
+                                SSColors.accent.opacity(0.12),
+                                SSColors.accent.opacity(0.03),
+                                Color.clear
+                            ],
                             center: .center,
-                            startRadius: 0,
-                            endRadius: 110
+                            startRadius: 10,
+                            endRadius: 140
                         )
                     )
-                    .frame(width: 220, height: 220)
-                    .blur(radius: 30)
+                    .frame(width: 280, height: 280)
+                    .blur(radius: 20)
+                    .modifier(BreathingPulseModifier(
+                        minScale: 0.92, maxScale: 1.10,
+                        minOpacity: 0.5, maxOpacity: 1.0,
+                        duration: 2.5
+                    ))
 
-                // Outer rotating ring with gradient stroke
-                Circle()
-                    .stroke(
-                        AngularGradient(
-                            colors: [SSColors.accent.opacity(0.15), SSColors.accent.opacity(0.03), SSColors.accent.opacity(0.15)],
-                            center: .center
-                        ),
-                        lineWidth: 1.5
-                    )
-                    .frame(width: 160, height: 160)
-                    .rotationEffect(.degrees(appeared && !reduceMotion ? 360 : 0))
-                    .animation(
-                        reduceMotion ? nil : .linear(duration: 60).repeatForever(autoreverses: false),
-                        value: appeared
-                    )
-
-                // Inner rotating ring
-                Circle()
-                    .stroke(
-                        AngularGradient(
-                            colors: [SSColors.accent.opacity(0.10), Color.clear, SSColors.accent.opacity(0.10)],
-                            center: .center
-                        ),
-                        lineWidth: 1
-                    )
-                    .frame(width: 120, height: 120)
-                    .rotationEffect(.degrees(appeared && !reduceMotion ? -360 : 0))
-                    .animation(
-                        reduceMotion ? nil : .linear(duration: 90).repeatForever(autoreverses: false),
-                        value: appeared
-                    )
-
-                // Inner glow behind icon
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [SSColors.accent.opacity(0.20), Color.clear],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 36
+                // 3D tilting disc assembly
+                ZStack {
+                    // Outer accent ring
+                    Circle()
+                        .stroke(
+                            AngularGradient(
+                                colors: [
+                                    SSColors.accent,
+                                    SSColors.accent.opacity(0.4),
+                                    SSColors.accent.opacity(0.1),
+                                    SSColors.accent.opacity(0.4),
+                                    SSColors.accent
+                                ],
+                                center: .center
+                            ),
+                            lineWidth: 2.5
                         )
-                    )
-                    .frame(width: 72, height: 72)
+                        .frame(width: 140, height: 140)
 
-                // Icon with gradient fill
-                Image(systemName: "doc.text.viewfinder")
-                    .font(.system(size: 48, weight: .ultraLight))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [SSColors.accent, SSColors.accent.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                    // Main disc
+                    Circle()
+                        .fill(SSColors.surfaceElevated)
+                        .frame(width: 130, height: 130)
+                        // Top-left shine
+                        .overlay(
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [
+                                            SSColors.accent.opacity(0.12),
+                                            SSColors.accent.opacity(0.03),
+                                            Color.clear
+                                        ],
+                                        center: UnitPoint(x: 0.3, y: 0.25),
+                                        startRadius: 0,
+                                        endRadius: 70
+                                    )
+                                )
                         )
-                    )
-                    .shadow(color: SSColors.accent.opacity(0.4), radius: 16)
+                        // Inner rim
+                        .overlay(
+                            Circle()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            SSColors.accent.opacity(0.4),
+                                            SSColors.divider,
+                                            SSColors.accent.opacity(0.15)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+
+                    // Icon
+                    Image(systemName: "text.viewfinder")
+                        .font(.system(size: 50, weight: .light))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [
+                                    SSColors.accent,
+                                    SSColors.accent.opacity(0.6)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .shadow(color: SSColors.accent.opacity(0.6), radius: 12)
+                        .shadow(color: SSColors.accent.opacity(0.3), radius: 24)
+                }
+                .shadow(color: SSColors.accent.opacity(0.4), radius: 30, x: 0, y: 6)
+                .shadow(color: SSColors.shadow, radius: 20, x: 0, y: 12)
+                .modifier(TiltingDiscModifier(duration: 4.0))
             }
-            .frame(height: 170)
+            .frame(height: 150)
             .opacity(appeared ? 1 : 0)
             .scaleEffect(appeared ? 1 : 0.8)
             .blur(radius: appeared ? 0 : 10)
             .animation(reduceMotion ? nil : SSAnimation.smooth, value: appeared)
 
             Text("ScriptSeer Pro")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .font(.system(size: 26, weight: .bold, design: .rounded))
                 .foregroundStyle(SSColors.textPrimary)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 8)
@@ -189,25 +223,29 @@ struct ProUpgradeView: View {
     // MARK: - Benefits
 
     private var benefitsSection: some View {
-        VStack(spacing: SSSpacing.sm) {
-            benefitRow(icon: "eye", text: "Look natural on camera, every take", delay: 0.45)
-            benefitRow(icon: "bolt.fill", text: "Nail your script in half the time", delay: 0.55)
-            benefitRow(icon: "sparkles", text: "AI-powered scripts that sound like you", delay: 0.65)
+        VStack(spacing: SSSpacing.xs) {
+            benefitRow(icon: "text.viewfinder", text: "Focus Window teleprompter mode", delay: 0.40)
+            benefitRow(icon: "waveform", text: "Voice-tracking auto-scroll", delay: 0.48)
+            benefitRow(icon: "camera.fill", text: "Record video with script overlay", delay: 0.56)
+            benefitRow(icon: "sparkles", text: "AI script rewriting and cleanup", delay: 0.64)
+            benefitRow(icon: "doc.on.doc", text: "Unlimited script variants", delay: 0.72)
+            benefitRow(icon: "paintpalette", text: "Custom themes and display modes", delay: 0.80)
+            benefitRow(icon: "square.and.arrow.down", text: "Import scripts from TXT, PDF, DOCX", delay: 0.88)
         }
     }
 
     private func benefitRow(icon: String, text: String, delay: Double) -> some View {
         HStack(spacing: SSSpacing.sm) {
             Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(SSColors.accent)
-                .frame(width: 28, height: 28)
+                .frame(width: 24, height: 24)
                 .background(
                     Circle().fill(SSColors.accentSubtle)
                 )
 
             Text(text)
-                .font(SSTypography.subheadline)
+                .font(SSTypography.footnote)
                 .foregroundStyle(SSColors.textPrimary)
 
             Spacer()
@@ -294,7 +332,7 @@ struct ProUpgradeView: View {
 
             Text(
                 selectedPlan == .annual
-                    ? "7-day free trial, then $39.99/year"
+                    ? "7-day free trial, then $39.99/year · Cancel anytime"
                     : "$4.99 billed monthly · Cancel anytime"
             )
             .font(SSTypography.caption)
@@ -341,8 +379,12 @@ struct ProUpgradeView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(SSColors.textSecondary)
                         .frame(width: 30, height: 30)
-                        .background(SSColors.surfaceGlass)
+                        .background(.ultraThinMaterial)
                         .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+                        )
                 }
             }
             .padding(.horizontal, SSSpacing.md)
@@ -487,3 +529,48 @@ private struct PlanCard: View {
         .buttonStyle(.plain)
     }
 }
+
+// MARK: - Animation Modifiers
+
+private struct BreathingPulseModifier: ViewModifier {
+    let minScale: CGFloat
+    let maxScale: CGFloat
+    let minOpacity: Double
+    let maxOpacity: Double
+    let duration: Double
+
+    @State private var active = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(reduceMotion ? 1.0 : (active ? maxScale : minScale))
+            .opacity(reduceMotion ? 1.0 : (active ? maxOpacity : minOpacity))
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: duration).repeatForever(autoreverses: true)) {
+                    active = true
+                }
+            }
+    }
+}
+
+private struct TiltingDiscModifier: ViewModifier {
+    let duration: Double
+
+    @State private var phase: Double = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        TimelineView(.animation(paused: reduceMotion)) { timeline in
+            let time = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
+            let xTilt = sin(time * (2 * .pi / duration)) * 12
+            let yTilt = cos(time * (2 * .pi / (duration * 0.7))) * 8
+
+            content
+                .rotation3DEffect(.degrees(xTilt), axis: (x: 1, y: 0, z: 0), perspective: 0.4)
+                .rotation3DEffect(.degrees(yTilt), axis: (x: 0, y: 1, z: 0), perspective: 0.4)
+        }
+    }
+}
+
