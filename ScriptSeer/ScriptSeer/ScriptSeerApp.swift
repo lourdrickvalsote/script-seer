@@ -6,16 +6,15 @@ struct ScriptSeerApp: App {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Script.self,
-            ScriptVariant.self,
-            ScriptFolder.self,
-            ScriptRevision.self,
-        ])
+        let schema = Schema(versionedSchema: SchemaV1.self)
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(
+                for: schema,
+                migrationPlan: ScriptSeerMigrationPlan.self,
+                configurations: [modelConfiguration]
+            )
         } catch {
             // Fallback: try in-memory store so the app remains usable
             let fallback = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)

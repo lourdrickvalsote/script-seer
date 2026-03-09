@@ -99,6 +99,15 @@ struct ProUpgradeView: View {
                         .font(SSTypography.caption)
                         .foregroundStyle(SSColors.accent)
                         .padding(.top, SSSpacing.xs)
+
+                        HStack(spacing: SSSpacing.md) {
+                            Link("Privacy Policy", destination: URL(string: "https://scriptseer.app/privacy")!)
+                            Text("·").foregroundStyle(SSColors.textTertiary)
+                            Link("Terms of Service", destination: URL(string: "https://scriptseer.app/terms")!)
+                        }
+                        .font(SSTypography.caption)
+                        .foregroundStyle(SSColors.textTertiary)
+                        .padding(.top, SSSpacing.xs)
                     }
                     .padding(.horizontal, SSSpacing.md)
                 }

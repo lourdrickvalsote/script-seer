@@ -108,22 +108,33 @@ final class CameraService: NSObject {
         // Don't switch camera during active recording
         if case .recording = recordingState { return }
 
-        currentPosition = currentPosition == .front ? .back : .front
+        let newPosition: CameraPosition = currentPosition == .front ? .back : .front
 
         captureSession.beginConfiguration()
+
+        // Save existing inputs for rollback
+        let existingInputs = captureSession.inputs
+
         // Remove existing inputs
-        for input in captureSession.inputs {
+        for input in existingInputs {
             captureSession.removeInput(input)
         }
 
-        guard let device = bestDevice(for: currentPosition),
+        guard let device = bestDevice(for: newPosition),
               let input = try? AVCaptureDeviceInput(device: device),
               captureSession.canAddInput(input) else {
+            // Restore previous inputs on failure
+            for input in existingInputs {
+                if captureSession.canAddInput(input) {
+                    captureSession.addInput(input)
+                }
+            }
             captureSession.commitConfiguration()
             return
         }
         captureSession.addInput(input)
         currentDevice = device
+        currentPosition = newPosition
 
         // Re-add audio
         if let audioDevice = AVCaptureDevice.default(for: .audio),

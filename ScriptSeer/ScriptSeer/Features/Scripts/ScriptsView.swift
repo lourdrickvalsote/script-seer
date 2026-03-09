@@ -20,6 +20,10 @@ struct ScriptsView: View {
     @State private var showRenameFolderAlert = false
     @State private var renameFolderName = ""
     @State private var folderToRename: ScriptFolder?
+    @State private var showDeleteConfirmation = false
+    @State private var scriptToDelete: Script?
+    @State private var showDeleteFolderConfirmation = false
+    @State private var folderToDelete: ScriptFolder?
 
     private var filteredScripts: [Script] {
         var filtered: [Script]
@@ -67,39 +71,53 @@ struct ScriptsView: View {
                             folderFilterBar
                         }
 
-                        List {
-                            ForEach(filteredScripts) { script in
-                                NavigationLink(destination: ScriptDetailView(script: script)) {
-                                    ScriptRowView(script: script)
-                                }
-                                .listRowBackground(SSColors.surfaceElevated)
-                                .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
-                                        deleteScript(script)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
+                        if filteredScripts.isEmpty && !searchText.isEmpty {
+                            VStack(spacing: SSSpacing.md) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 36, weight: .light))
+                                    .foregroundStyle(SSColors.textTertiary)
+                                Text("No results for \"\(searchText)\"")
+                                    .font(SSTypography.subheadline)
+                                    .foregroundStyle(SSColors.textSecondary)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(.top, SSSpacing.xxl)
+                        } else {
+                            List {
+                                ForEach(filteredScripts) { script in
+                                    NavigationLink(destination: ScriptDetailView(script: script)) {
+                                        ScriptRowView(script: script)
                                     }
+                                    .listRowBackground(SSColors.surfaceElevated)
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) {
+                                            scriptToDelete = script
+                                            showDeleteConfirmation = true
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
 
-                                    Button {
-                                        duplicateScript(script)
-                                    } label: {
-                                        Label("Duplicate", systemImage: "doc.on.doc")
+                                        Button {
+                                            duplicateScript(script)
+                                        } label: {
+                                            Label("Duplicate", systemImage: "doc.on.doc")
+                                        }
+                                        .tint(SSColors.accent)
                                     }
-                                    .tint(SSColors.accent)
-                                }
-                                .swipeActions(edge: .leading) {
-                                    Button {
-                                        scriptToMove = script
-                                        showMoveSheet = true
-                                    } label: {
-                                        Label("Move", systemImage: "folder")
+                                    .swipeActions(edge: .leading) {
+                                        Button {
+                                            scriptToMove = script
+                                            showMoveSheet = true
+                                        } label: {
+                                            Label("Move", systemImage: "folder")
+                                        }
+                                        .tint(SSColors.slate)
                                     }
-                                    .tint(SSColors.slate)
                                 }
                             }
+                            .listStyle(.plain)
+                            .scrollContentBackground(.hidden)
                         }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
                     }
                 }
             }
@@ -154,6 +172,34 @@ struct ScriptsView: View {
                 Button("Rename") { renameFolder() }
                 Button("Cancel", role: .cancel) {}
             }
+            .confirmationDialog(
+                "Delete \"\(scriptToDelete?.title ?? "Script")\"?",
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let script = scriptToDelete {
+                        deleteScript(script)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This script will be permanently deleted.")
+            }
+            .confirmationDialog(
+                "Delete folder \"\(folderToDelete?.name ?? "")\"?",
+                isPresented: $showDeleteFolderConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Folder", role: .destructive) {
+                    if let folder = folderToDelete {
+                        deleteFolder(folder)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Scripts in this folder will be moved out, not deleted.")
+            }
             .sheet(isPresented: $showMoveSheet) {
                 MoveToFolderSheet(
                     script: scriptToMove,
@@ -198,7 +244,8 @@ struct ScriptsView: View {
                             Label("Rename Folder", systemImage: "pencil")
                         }
                         Button(role: .destructive) {
-                            deleteFolder(folder)
+                            folderToDelete = folder
+                            showDeleteFolderConfirmation = true
                         } label: {
                             Label("Delete Folder", systemImage: "trash")
                         }

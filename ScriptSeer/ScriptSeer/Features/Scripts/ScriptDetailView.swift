@@ -6,7 +6,9 @@ struct ScriptDetailView: View {
     @State private var editingTitle = false
     @State private var editedTitle = ""
     @State private var showExportSheet = false
-    @State private var exportItems: [Any] = []
+    @State private var exportItems: [URL] = []
+    @State private var showExportError = false
+    @State private var exportErrorMessage = ""
     @FocusState private var titleFocused: Bool
 
     var body: some View {
@@ -126,9 +128,14 @@ struct ScriptDetailView: View {
             }
         }
         .sheet(isPresented: $showExportSheet) {
-            if let url = exportItems.first as? URL {
+            if let url = exportItems.first {
                 ShareSheet(items: [url])
             }
+        }
+        .alert("Export Failed", isPresented: $showExportError) {
+            Button("OK") {}
+        } message: {
+            Text(exportErrorMessage)
         }
     }
 
@@ -141,9 +148,13 @@ struct ScriptDetailView: View {
     }
 
     private func exportScript(format: ExportService.ExportFormat) {
-        if let url = ExportService.createTempFile(script: script, format: format) {
+        do {
+            let url = try ExportService.createTempFile(script: script, format: format)
             exportItems = [url]
             showExportSheet = true
+        } catch {
+            exportErrorMessage = error.localizedDescription
+            showExportError = true
         }
     }
 }

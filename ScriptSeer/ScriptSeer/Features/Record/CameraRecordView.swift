@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 struct CameraRecordView: View {
     @Environment(\.dismiss) private var dismiss
@@ -14,6 +15,8 @@ struct CameraRecordView: View {
     @State private var showExitConfirmation = false
     @State private var showShareSheet = false
     @State private var showSettings = false
+    @State private var cameraPermissionDenied = false
+    @State private var micPermissionDenied = false
 
     init(script: Script) {
         self.script = script
@@ -57,10 +60,14 @@ struct CameraRecordView: View {
             if showSettings {
                 settingsPanel
             }
+
+            // Permission denied overlay
+            if cameraPermissionDenied || micPermissionDenied {
+                permissionDeniedOverlay
+            }
         }
         .onAppear {
-            cameraService.configure()
-            cameraService.startSession()
+            checkPermissions()
         }
         .onDisappear {
             if cameraService.recordingState == .recording || cameraService.recordingState == .paused {
@@ -476,5 +483,108 @@ struct CameraRecordView: View {
         let minutes = Int(recordingDuration) / 60
         let seconds = Int(recordingDuration) % 60
         return String(format: "%02d:%02d", minutes, seconds)
+    }
+
+    private func checkPermissions() {
+        let cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)
+        let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+
+        if cameraStatus == .denied || cameraStatus == .restricted {
+            cameraPermissionDenied = true
+        } else if cameraStatus == .notDetermined {
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        checkMicAndStart()
+                    } else {
+                        cameraPermissionDenied = true
+                    }
+                }
+            }
+            return
+        }
+
+        if micStatus == .denied || micStatus == .restricted {
+            micPermissionDenied = true
+        } else if micStatus == .notDetermined {
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                DispatchQueue.main.async {
+                    if !granted { micPermissionDenied = true }
+                    cameraService.configure()
+                    cameraService.startSession()
+                }
+            }
+            return
+        }
+
+        if !cameraPermissionDenied {
+            cameraService.configure()
+            cameraService.startSession()
+        }
+    }
+
+    private func checkMicAndStart() {
+        let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        if micStatus == .notDetermined {
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                DispatchQueue.main.async {
+                    if !granted { micPermissionDenied = true }
+                    cameraService.configure()
+                    cameraService.startSession()
+                }
+            }
+        } else {
+            if micStatus == .denied || micStatus == .restricted {
+                micPermissionDenied = true
+            }
+            cameraService.configure()
+            cameraService.startSession()
+        }
+    }
+
+    private var permissionDeniedOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.85).ignoresSafeArea()
+
+            VStack(spacing: SSSpacing.lg) {
+                Image(systemName: cameraPermissionDenied ? "camera.fill" : "mic.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.white.opacity(0.6))
+
+                Text(cameraPermissionDenied ? "Camera Access Required" : "Microphone Access Required")
+                    .font(SSTypography.headline)
+                    .foregroundStyle(.white)
+
+                Text(cameraPermissionDenied
+                     ? "ScriptSeer needs camera access to record video. Please enable it in Settings."
+                     : "ScriptSeer needs microphone access for audio recording. Please enable it in Settings.")
+                    .font(SSTypography.subheadline)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, SSSpacing.xl)
+
+                HStack(spacing: SSSpacing.md) {
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    .font(SSTypography.headline)
+                    .foregroundStyle(SSColors.lavenderMist)
+                    .padding(.horizontal, SSSpacing.lg)
+                    .padding(.vertical, SSSpacing.sm)
+                    .background(SSColors.accent)
+                    .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+
+                    Button("Go Back") { dismiss() }
+                        .font(SSTypography.headline)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, SSSpacing.lg)
+                        .padding(.vertical, SSSpacing.sm)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+                }
+            }
+        }
     }
 }

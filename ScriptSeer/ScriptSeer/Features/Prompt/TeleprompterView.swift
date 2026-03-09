@@ -664,8 +664,16 @@ struct TeleprompterView: View {
                 }
             }
 
-            SSButton("Exit", variant: .secondary) { dismiss() }
-                .frame(width: 160)
+            HStack(spacing: SSSpacing.md) {
+                SSButton("Restart", icon: "arrow.counterclockwise", variant: .secondary) {
+                    session.scrollOffset = 0
+                    session.state = .idle
+                }
+                .frame(width: 150)
+
+                SSButton("Exit", variant: .secondary) { dismiss() }
+                    .frame(width: 120)
+            }
         }
     }
 
@@ -713,6 +721,9 @@ struct TeleprompterView: View {
 
     private func toggleSpeechFollow() {
         if speechEngine.state == .idle || speechEngine.state == .stopped {
+            // Apply user's preferred speech follow mode
+            let savedMode = UserDefaults.standard.string(forKey: "speechFollowMode") ?? "Smart"
+            speechEngine.mode = SpeechFollowMode(rawValue: savedMode) ?? .smart
             speechEngine.prepare(scriptContent: session.script.content)
             Task {
                 let authorized = await speechEngine.requestAuthorization()

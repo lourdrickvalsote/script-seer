@@ -108,8 +108,10 @@ struct ExportService {
     }
 
     /// Create a temporary file URL for sharing
-    static func createTempFile(script: Script, format: ExportFormat) -> URL? {
-        guard let data = export(script: script, format: format) else { return nil }
+    static func createTempFile(script: Script, format: ExportFormat) throws -> URL {
+        guard let data = export(script: script, format: format) else {
+            throw ExportError.exportFailed
+        }
 
         let sanitizedTitle = script.title
             .replacingOccurrences(of: "/", with: "-")
@@ -117,11 +119,15 @@ struct ExportService {
         let fileName = "\(sanitizedTitle).\(format.fileExtension)"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
 
-        do {
-            try data.write(to: url)
-            return url
-        } catch {
-            return nil
+        try data.write(to: url)
+        return url
+    }
+
+    enum ExportError: LocalizedError {
+        case exportFailed
+
+        var errorDescription: String? {
+            "Failed to generate the export file."
         }
     }
 }

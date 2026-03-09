@@ -148,12 +148,16 @@ struct SettingsView: View {
 
                 // About
                 Section {
-                    HStack {
-                        SettingsRow(icon: "info.circle", title: "About ScriptSeer")
-                        Spacer()
-                        Text(Bundle.main.appVersion)
-                            .font(SSTypography.caption)
-                            .foregroundStyle(SSColors.textTertiary)
+                    NavigationLink {
+                        aboutView
+                    } label: {
+                        HStack {
+                            SettingsRow(icon: "info.circle", title: "About ScriptSeer")
+                            Spacer()
+                            Text(Bundle.main.appVersion)
+                                .font(SSTypography.caption)
+                                .foregroundStyle(SSColors.textTertiary)
+                        }
                     }
                 } header: {
                     Text("More")
@@ -171,6 +175,36 @@ struct SettingsView: View {
                 KeychainHelper.save(aiAPIKey, forKey: "aiAPIKey")
             }
         }
+    }
+
+    private var aboutView: some View {
+        ScrollView {
+            VStack(spacing: SSSpacing.xl) {
+                Image(systemName: "doc.text.viewfinder")
+                    .font(.system(size: 64, weight: .light))
+                    .foregroundStyle(SSColors.accent)
+                    .padding(.top, SSSpacing.xxl)
+
+                VStack(spacing: SSSpacing.xs) {
+                    Text("ScriptSeer")
+                        .font(SSTypography.largeTitle)
+                        .foregroundStyle(SSColors.textPrimary)
+
+                    Text(Bundle.main.appVersion)
+                        .font(SSTypography.subheadline)
+                        .foregroundStyle(SSColors.textTertiary)
+                }
+
+                Text("A premium teleprompter for creators, speakers, and storytellers.")
+                    .font(SSTypography.body)
+                    .foregroundStyle(SSColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, SSSpacing.xl)
+            }
+        }
+        .background(SSColors.background)
+        .navigationTitle("About")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

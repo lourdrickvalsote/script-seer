@@ -102,16 +102,8 @@ enum ImportService {
             throw ImportError.fileReadFailed
         }
 
-        // Try reading as attributed string first (NSAttributedString supports DOCX on iOS)
-        if let attributed = try? NSAttributedString(
-            data: data,
-            options: [.documentType: NSAttributedString.DocumentType.plain],
-            documentAttributes: nil
-        ), !attributed.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return attributed.string
-        }
-
-        // Fallback: basic XML extraction from the ZIP
+        // iOS doesn't support .officeOpenXML via NSAttributedString,
+        // so go directly to ZIP-based XML extraction
         return try extractDOCXFromZip(data: data)
     }
 

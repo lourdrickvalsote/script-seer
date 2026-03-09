@@ -101,6 +101,8 @@ final class SpeechFollowEngine {
             audioEngine.inputNode.removeTap(onBus: 0)
             audioEngine.stop()
         }
+        // Deactivate audio session so other audio can resume
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         state = .stopped
         debugLog(message: "Stopped")
     }
