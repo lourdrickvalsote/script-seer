@@ -152,47 +152,101 @@ final class MockAIProvider: AIProvider {
     func process(action: AIAction, content: String) async throws -> String {
         try await Task.sleep(for: .seconds(1.5))
 
+        let sentences = splitSentences(content)
+
         switch action {
         case .makePromptable:
-            return addPrompterFormatting(content)
+            return makePromptable(sentences)
         case .shorten:
-            return shortenText(content)
+            return shorten(sentences)
         case .simplify:
-            return "[Simplified Version]\n\n" + content
+            return simplify(sentences)
         case .conversational:
-            return "So here's the thing — " + content.lowercased().prefix(1).uppercased() + content.dropFirst()
+            return conversational(sentences, original: content)
         case .alternateTake:
-            return content.components(separatedBy: ". ").reversed().joined(separator: ". ")
+            return alternateTake(sentences)
         case .splitChunks:
-            return splitIntoChunks(content)
+            return splitChunks(content)
         }
     }
 
-    private func addPrompterFormatting(_ text: String) -> String {
-        let sentences = text.components(separatedBy: ". ")
-        return sentences.enumerated().map { index, sentence in
-            if (index + 1) % 3 == 0 {
-                return sentence + ".\n\n[PAUSE]\n"
+    private func splitSentences(_ text: String) -> [String] {
+        text.components(separatedBy: ". ")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func makePromptable(_ sentences: [String]) -> String {
+        var result = ""
+        for (i, sentence) in sentences.enumerated() {
+            let clean = sentence.hasSuffix(".") ? sentence : sentence + "."
+            result += clean + "\n\n"
+            if (i + 1) % 2 == 0 && i < sentences.count - 1 {
+                result += "[PAUSE — breathe]\n\n"
             }
-            return sentence + "."
-        }.joined(separator: " ")
-    }
-
-    private func shortenText(_ text: String) -> String {
-        let sentences = text.components(separatedBy: ". ")
-        let shortened = sentences.enumerated().compactMap { index, sentence -> String? in
-            index % 3 != 2 ? sentence : nil
         }
-        return shortened.joined(separator: ". ") + "."
+        return "— TELEPROMPTER FORMATTED —\n\n" + result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func splitIntoChunks(_ text: String) -> String {
+    private func shorten(_ sentences: [String]) -> String {
+        let shortened = sentences.compactMap { sentence -> String? in
+            let words = sentence.split(separator: " ")
+            guard words.count > 4 else { return sentence }
+            let kept = words.prefix(max(words.count * 2 / 3, 3))
+            return kept.joined(separator: " ") + "."
+        }
+        return "— SHORTENED VERSION —\n\n" + shortened.joined(separator: " ")
+    }
+
+    private func simplify(_ sentences: [String]) -> String {
+        let simplified = sentences.map { sentence -> String in
+            var s = sentence
+            let replacements: [(String, String)] = [
+                ("utilize", "use"), ("implement", "do"), ("approximately", "about"),
+                ("demonstrate", "show"), ("facilitate", "help"), ("regarding", "about"),
+                ("subsequently", "then"), ("nevertheless", "but"), ("furthermore", "also"),
+                ("however", "but"), ("therefore", "so"), ("additional", "more"),
+            ]
+            for (from, to) in replacements {
+                s = s.replacingOccurrences(of: from, with: to, options: .caseInsensitive)
+            }
+            return s
+        }
+        return "— SIMPLIFIED VERSION —\n\n" + simplified.joined(separator: ". ")
+    }
+
+    private func conversational(_ sentences: [String], original: String) -> String {
+        let fillers = ["So, ", "You know, ", "Here's the thing — ", "Basically, ", "Look, ", "Okay so "]
+        let converted = sentences.enumerated().map { i, sentence in
+            if i == 0 {
+                return fillers[0] + sentence.prefix(1).lowercased() + sentence.dropFirst()
+            } else if i % 3 == 0 {
+                return fillers[min(i / 3, fillers.count - 1)] + sentence.prefix(1).lowercased() + sentence.dropFirst()
+            }
+            return sentence
+        }
+        return "— CONVERSATIONAL REWRITE —\n\n" + converted.joined(separator: ". ")
+    }
+
+    private func alternateTake(_ sentences: [String]) -> String {
+        let synonymStarts = ["In other words, ", "Put differently, ", "To put it another way, ", "What this means is "]
+        let rewritten = sentences.enumerated().map { i, sentence in
+            let prefix = synonymStarts[i % synonymStarts.count]
+            let lower = sentence.prefix(1).lowercased() + sentence.dropFirst()
+            return prefix + lower
+        }
+        return "— ALTERNATE TAKE —\n\n" + rewritten.joined(separator: ".\n\n") + "."
+    }
+
+    private func splitChunks(_ text: String) -> String {
         let words = text.split(separator: " ")
-        let chunkSize = 15
-        return stride(from: 0, to: words.count, by: chunkSize).map { start in
+        let chunkSize = 8
+        let chunks = stride(from: 0, to: words.count, by: chunkSize).enumerated().map { index, start in
             let end = min(start + chunkSize, words.count)
-            return words[start..<end].joined(separator: " ")
-        }.joined(separator: "\n\n")
+            let chunk = words[start..<end].joined(separator: " ")
+            return "[\(index + 1)] \(chunk)"
+        }
+        return "— CHUNKED FOR TELEPROMPTER —\n\n" + chunks.joined(separator: "\n\n")
     }
 }
 

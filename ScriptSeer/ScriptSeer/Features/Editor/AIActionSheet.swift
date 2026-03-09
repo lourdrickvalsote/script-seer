@@ -8,6 +8,7 @@ struct AIActionSheet: View {
     @State private var aiService = AIActionService()
     @State private var selectedAction: AIAction?
     @State private var aiStatus: AppleIntelligenceStatus?
+    @State private var loadingRotation: Double = 0
 
     var body: some View {
         NavigationStack {
@@ -115,22 +116,66 @@ struct AIActionSheet: View {
     // MARK: - Loading
 
     private var loadingView: some View {
-        VStack(spacing: SSSpacing.lg) {
+        VStack(spacing: 0) {
             Spacer()
-            ProgressView()
-                .scaleEffect(1.5)
-                .tint(SSColors.accent)
 
-            if let action = selectedAction {
-                Text("Running: \(action.rawValue)")
-                    .font(SSTypography.headline)
-                    .foregroundStyle(SSColors.textPrimary)
+            ZStack {
+                // Outer glow ring
+                Circle()
+                    .stroke(SSColors.accent.opacity(0.15), lineWidth: 3)
+                    .frame(width: 100, height: 100)
+
+                // Animated arc
+                Circle()
+                    .trim(from: 0, to: 0.3)
+                    .stroke(
+                        SSColors.accent,
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                    )
+                    .frame(width: 100, height: 100)
+                    .rotationEffect(.degrees(loadingRotation))
+
+                // Center icon
+                if let action = selectedAction {
+                    Image(systemName: action.icon)
+                        .font(.system(size: 28, weight: .medium))
+                        .foregroundStyle(SSColors.accent)
+                }
             }
 
-            Text("This creates a new variant. Your original is safe.")
-                .font(SSTypography.caption)
-                .foregroundStyle(SSColors.textTertiary)
+            VStack(spacing: SSSpacing.xs) {
+                if let action = selectedAction {
+                    Text(action.rawValue)
+                        .font(SSTypography.title2)
+                        .foregroundStyle(SSColors.textPrimary)
+                }
+
+                Text("Processing your script...")
+                    .font(SSTypography.subheadline)
+                    .foregroundStyle(SSColors.textSecondary)
+            }
+            .padding(.top, SSSpacing.xl)
+
             Spacer()
+
+            SSGlassPanel {
+                HStack(spacing: SSSpacing.sm) {
+                    Image(systemName: "lock.shield")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(SSColors.accent)
+                    Text("Your original script is safe. This creates a new variant.")
+                        .font(SSTypography.caption)
+                        .foregroundStyle(SSColors.textTertiary)
+                }
+                .padding(.vertical, SSSpacing.xxs)
+            }
+            .padding(.horizontal, SSSpacing.md)
+            .padding(.bottom, SSSpacing.lg)
+        }
+        .onAppear {
+            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                loadingRotation = 360
+            }
         }
     }
 
