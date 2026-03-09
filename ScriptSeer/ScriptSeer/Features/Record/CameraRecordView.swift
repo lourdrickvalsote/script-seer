@@ -35,6 +35,7 @@ struct CameraRecordView: View {
     @State private var speechSentenceIndex: Int = 0
     @State private var smoothScrollY: CGFloat = 0
     @State private var deviceOrientation: UIDeviceOrientation = UIDevice.current.orientation
+    @State private var remoteInput = RemoteInputService.shared
 
     private enum LayoutMode {
         case portrait
@@ -199,6 +200,44 @@ struct CameraRecordView: View {
                 dismiss()
             }
             Button("Cancel", role: .cancel) {}
+        }
+        .onChange(of: remoteInput.latestAction?.id) {
+            guard let (action, _) = remoteInput.latestAction else { return }
+            switch action {
+            case .toggleRecording:
+                toggleRecording()
+            case .playPause:
+                if isRecording { togglePauseResume() } else { toggleRecording() }
+            case .jumpBack:
+                promptSession.jumpBack()
+            case .jumpForward:
+                promptSession.jumpForward()
+            case .speedUp:
+                promptSession.scrollSpeed = min(promptSession.scrollSpeed + 5, 120)
+            case .speedDown:
+                promptSession.scrollSpeed = max(promptSession.scrollSpeed - 5, 10)
+            default: break
+            }
+        }
+        .onKeyPress(.space) {
+            if isRecording { togglePauseResume() } else { toggleRecording() }
+            return .handled
+        }
+        .onKeyPress(.upArrow) {
+            promptSession.scrollSpeed = min(promptSession.scrollSpeed + 5, 120)
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            promptSession.scrollSpeed = max(promptSession.scrollSpeed - 5, 10)
+            return .handled
+        }
+        .onKeyPress(.leftArrow) {
+            promptSession.jumpBack()
+            return .handled
+        }
+        .onKeyPress(.rightArrow) {
+            promptSession.jumpForward()
+            return .handled
         }
     }
 
@@ -1146,6 +1185,7 @@ struct CameraRecordView: View {
         // Preserve user's scroll position as starting point
         let startWordIndex = speechEngine.currentWordIndex
         speechEngine.mode = followMode == .speechStrict ? .strict : .smart
+        speechEngine.applyStoredLanguageSetting()
         speechEngine.prepare(scriptContent: scriptContent)
         speechEngine.currentWordIndex = startWordIndex
         // Configure audio session for both camera/audio and speech to share

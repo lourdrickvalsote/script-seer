@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E6202C3D2F5EC9570075C116 /* ScriptSeerWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E6202C1D2F5EC9560075C116 /* ScriptSeerWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		E62027DE2F5E2BCF0075C116 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +25,50 @@
 			remoteGlobalIDString = E62027CB2F5E2BCE0075C116;
 			remoteInfo = ScriptSeer;
 		};
+		E6202C2A2F5EC9570075C116 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E62027C42F5E2BCE0075C116 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E6202C1C2F5EC9560075C116;
+			remoteInfo = "ScriptSeerWatch Watch App";
+		};
+		E6202C342F5EC9570075C116 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E62027C42F5E2BCE0075C116 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E6202C1C2F5EC9560075C116;
+			remoteInfo = "ScriptSeerWatch Watch App";
+		};
+		E6202C3B2F5EC9570075C116 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E62027C42F5E2BCE0075C116 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E6202C1C2F5EC9560075C116;
+			remoteInfo = "ScriptSeerWatch Watch App";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E6202C412F5EC9570075C116 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				E6202C3D2F5EC9570075C116 /* ScriptSeerWatch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		E62027CC2F5E2BCE0075C116 /* ScriptSeer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScriptSeer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E62027DD2F5E2BCF0075C116 /* ScriptSeerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScriptSeerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E62027E72F5E2BCF0075C116 /* ScriptSeerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScriptSeerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E6202C1D2F5EC9560075C116 /* ScriptSeerWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ScriptSeerWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E6202C292F5EC9570075C116 /* ScriptSeerWatch Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ScriptSeerWatch Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E6202C332F5EC9570075C116 /* ScriptSeerWatch Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ScriptSeerWatch Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -58,6 +100,21 @@
 			path = ScriptSeerUITests;
 			sourceTree = "<group>";
 		};
+		E6202C1E2F5EC9560075C116 /* ScriptSeerWatch Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "ScriptSeerWatch Watch App";
+			sourceTree = "<group>";
+		};
+		E6202C2C2F5EC9570075C116 /* ScriptSeerWatch Watch AppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "ScriptSeerWatch Watch AppTests";
+			sourceTree = "<group>";
+		};
+		E6202C362F5EC9570075C116 /* ScriptSeerWatch Watch AppUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "ScriptSeerWatch Watch AppUITests";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,6 +139,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E6202C1A2F5EC9560075C116 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E6202C262F5EC9570075C116 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E6202C302F5EC9570075C116 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -91,6 +169,9 @@
 				E62027CE2F5E2BCE0075C116 /* ScriptSeer */,
 				E62027E02F5E2BCF0075C116 /* ScriptSeerTests */,
 				E62027EA2F5E2BCF0075C116 /* ScriptSeerUITests */,
+				E6202C1E2F5EC9560075C116 /* ScriptSeerWatch Watch App */,
+				E6202C2C2F5EC9570075C116 /* ScriptSeerWatch Watch AppTests */,
+				E6202C362F5EC9570075C116 /* ScriptSeerWatch Watch AppUITests */,
 				E62027CD2F5E2BCE0075C116 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,6 +182,9 @@
 				E62027CC2F5E2BCE0075C116 /* ScriptSeer.app */,
 				E62027DD2F5E2BCF0075C116 /* ScriptSeerTests.xctest */,
 				E62027E72F5E2BCF0075C116 /* ScriptSeerUITests.xctest */,
+				E6202C1D2F5EC9560075C116 /* ScriptSeerWatch Watch App.app */,
+				E6202C292F5EC9570075C116 /* ScriptSeerWatch Watch AppTests.xctest */,
+				E6202C332F5EC9570075C116 /* ScriptSeerWatch Watch AppUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -115,10 +199,12 @@
 				E62027C82F5E2BCE0075C116 /* Sources */,
 				E62027C92F5E2BCE0075C116 /* Frameworks */,
 				E62027CA2F5E2BCE0075C116 /* Resources */,
+				E6202C412F5EC9570075C116 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				E6202C3C2F5EC9570075C116 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E62027CE2F5E2BCE0075C116 /* ScriptSeer */,
@@ -176,6 +262,74 @@
 			productReference = E62027E72F5E2BCF0075C116 /* ScriptSeerUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		E6202C1C2F5EC9560075C116 /* ScriptSeerWatch Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E6202C3E2F5EC9570075C116 /* Build configuration list for PBXNativeTarget "ScriptSeerWatch Watch App" */;
+			buildPhases = (
+				E6202C192F5EC9560075C116 /* Sources */,
+				E6202C1A2F5EC9560075C116 /* Frameworks */,
+				E6202C1B2F5EC9560075C116 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E6202C1E2F5EC9560075C116 /* ScriptSeerWatch Watch App */,
+			);
+			name = "ScriptSeerWatch Watch App";
+			packageProductDependencies = (
+			);
+			productName = "ScriptSeerWatch Watch App";
+			productReference = E6202C1D2F5EC9560075C116 /* ScriptSeerWatch Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E6202C282F5EC9570075C116 /* ScriptSeerWatch Watch AppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E6202C422F5EC9570075C116 /* Build configuration list for PBXNativeTarget "ScriptSeerWatch Watch AppTests" */;
+			buildPhases = (
+				E6202C252F5EC9570075C116 /* Sources */,
+				E6202C262F5EC9570075C116 /* Frameworks */,
+				E6202C272F5EC9570075C116 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E6202C2B2F5EC9570075C116 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E6202C2C2F5EC9570075C116 /* ScriptSeerWatch Watch AppTests */,
+			);
+			name = "ScriptSeerWatch Watch AppTests";
+			packageProductDependencies = (
+			);
+			productName = "ScriptSeerWatch Watch AppTests";
+			productReference = E6202C292F5EC9570075C116 /* ScriptSeerWatch Watch AppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E6202C322F5EC9570075C116 /* ScriptSeerWatch Watch AppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E6202C452F5EC9570075C116 /* Build configuration list for PBXNativeTarget "ScriptSeerWatch Watch AppUITests" */;
+			buildPhases = (
+				E6202C2F2F5EC9570075C116 /* Sources */,
+				E6202C302F5EC9570075C116 /* Frameworks */,
+				E6202C312F5EC9570075C116 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E6202C352F5EC9570075C116 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E6202C362F5EC9570075C116 /* ScriptSeerWatch Watch AppUITests */,
+			);
+			name = "ScriptSeerWatch Watch AppUITests";
+			packageProductDependencies = (
+			);
+			productName = "ScriptSeerWatch Watch AppUITests";
+			productReference = E6202C332F5EC9570075C116 /* ScriptSeerWatch Watch AppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -197,6 +351,17 @@
 						CreatedOnToolsVersion = 26.0.1;
 						TestTargetID = E62027CB2F5E2BCE0075C116;
 					};
+					E6202C1C2F5EC9560075C116 = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
+					E6202C282F5EC9570075C116 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = E6202C1C2F5EC9560075C116;
+					};
+					E6202C322F5EC9570075C116 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = E6202C1C2F5EC9560075C116;
+					};
 				};
 			};
 			buildConfigurationList = E62027C72F5E2BCE0075C116 /* Build configuration list for PBXProject "ScriptSeer" */;
@@ -216,6 +381,9 @@
 				E62027CB2F5E2BCE0075C116 /* ScriptSeer */,
 				E62027DC2F5E2BCF0075C116 /* ScriptSeerTests */,
 				E62027E62F5E2BCF0075C116 /* ScriptSeerUITests */,
+				E6202C1C2F5EC9560075C116 /* ScriptSeerWatch Watch App */,
+				E6202C282F5EC9570075C116 /* ScriptSeerWatch Watch AppTests */,
+				E6202C322F5EC9570075C116 /* ScriptSeerWatch Watch AppUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -236,6 +404,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E62027E52F5E2BCF0075C116 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E6202C1B2F5EC9560075C116 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E6202C272F5EC9570075C116 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E6202C312F5EC9570075C116 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -266,6 +455,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E6202C192F5EC9560075C116 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E6202C252F5EC9570075C116 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E6202C2F2F5EC9570075C116 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -278,6 +488,21 @@
 			isa = PBXTargetDependency;
 			target = E62027CB2F5E2BCE0075C116 /* ScriptSeer */;
 			targetProxy = E62027E82F5E2BCF0075C116 /* PBXContainerItemProxy */;
+		};
+		E6202C2B2F5EC9570075C116 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E6202C1C2F5EC9560075C116 /* ScriptSeerWatch Watch App */;
+			targetProxy = E6202C2A2F5EC9570075C116 /* PBXContainerItemProxy */;
+		};
+		E6202C352F5EC9570075C116 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E6202C1C2F5EC9560075C116 /* ScriptSeerWatch Watch App */;
+			targetProxy = E6202C342F5EC9570075C116 /* PBXContainerItemProxy */;
+		};
+		E6202C3C2F5EC9570075C116 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E6202C1C2F5EC9560075C116 /* ScriptSeerWatch Watch App */;
+			targetProxy = E6202C3B2F5EC9570075C116 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -561,6 +786,162 @@
 			};
 			name = Release;
 		};
+		E6202C3F2F5EC9570075C116 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDW5JCXJDK;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ScriptSeerWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.valsote.ScriptSeer;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.valsote.ScriptSeer.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		E6202C402F5EC9570075C116 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDW5JCXJDK;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ScriptSeerWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.valsote.ScriptSeer;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.valsote.ScriptSeer.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		E6202C432F5EC9570075C116 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDW5JCXJDK;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.valsote.ScriptSeer.watchkitapp.ScriptSeerWatch-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ScriptSeerWatch Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ScriptSeerWatch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		E6202C442F5EC9570075C116 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDW5JCXJDK;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.valsote.ScriptSeer.watchkitapp.ScriptSeerWatch-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ScriptSeerWatch Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ScriptSeerWatch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		E6202C462F5EC9570075C116 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDW5JCXJDK;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.valsote.ScriptSeer.watchkitapp.ScriptSeerWatch-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "ScriptSeerWatch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		E6202C472F5EC9570075C116 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDW5JCXJDK;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.valsote.ScriptSeer.watchkitapp.ScriptSeerWatch-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "ScriptSeerWatch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -596,6 +977,33 @@
 			buildConfigurations = (
 				E62027F92F5E2BCF0075C116 /* Debug */,
 				E62027FA2F5E2BCF0075C116 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E6202C3E2F5EC9570075C116 /* Build configuration list for PBXNativeTarget "ScriptSeerWatch Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E6202C3F2F5EC9570075C116 /* Debug */,
+				E6202C402F5EC9570075C116 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E6202C422F5EC9570075C116 /* Build configuration list for PBXNativeTarget "ScriptSeerWatch Watch AppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E6202C432F5EC9570075C116 /* Debug */,
+				E6202C442F5EC9570075C116 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E6202C452F5EC9570075C116 /* Build configuration list for PBXNativeTarget "ScriptSeerWatch Watch AppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E6202C462F5EC9570075C116 /* Debug */,
+				E6202C472F5EC9570075C116 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

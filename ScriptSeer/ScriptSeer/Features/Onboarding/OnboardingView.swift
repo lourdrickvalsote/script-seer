@@ -86,10 +86,12 @@ struct OnboardingView: View {
             }
         }
         .fullScreenCover(isPresented: $showPaywall) {
-            ProUpgradeView()
-                .onDisappear {
-                    hasSeenOnboarding = true
-                }
+            NavigationStack {
+                ProUpgradeView()
+            }
+            .onDisappear {
+                hasSeenOnboarding = true
+            }
         }
     }
 

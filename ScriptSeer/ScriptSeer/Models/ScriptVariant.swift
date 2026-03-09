@@ -27,12 +27,12 @@ enum VariantSourceType: String, Codable, CaseIterable {
 
 @Model
 final class ScriptVariant {
-    var id: UUID
-    var title: String
-    var content: String
-    var sourceType: VariantSourceType
-    var createdAt: Date
-    var updatedAt: Date
+    var id: UUID = UUID()
+    var title: String = ""
+    var content: String = ""
+    var sourceType: VariantSourceType = VariantSourceType.original
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
 
     var parentScript: Script?
 

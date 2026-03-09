@@ -1,0 +1,18 @@
+{
+  "en": ["um", "uh", "like", "you know", "so", "well", "basically", "actually", "literally", "right"],
+  "es": ["eh", "este", "bueno", "pues", "o sea", "como", "digamos", "mira", "vale"],
+  "fr": ["euh", "ben", "donc", "genre", "enfin", "voilà", "quoi", "bref", "du coup"],
+  "de": ["äh", "ähm", "also", "halt", "sozusagen", "quasi", "eigentlich", "genau", "na ja"],
+  "ja": ["えーと", "あの", "その", "まあ", "なんか", "ええ", "ほら"],
+  "pt": ["é", "tipo", "assim", "né", "bom", "olha", "enfim", "digamos"],
+  "it": ["ehm", "cioè", "allora", "praticamente", "tipo", "insomma", "diciamo"],
+  "ko": ["음", "어", "그", "이제", "뭐", "좀", "약간"],
+  "zh": ["嗯", "那个", "就是", "然后", "这个", "所以", "对"],
+  "ru": ["э", "ну", "вот", "как бы", "типа", "значит", "короче"],
+  "ar": ["يعني", "هيك", "شو", "طيب", "مثلاً"],
+  "hi": ["मतलब", "बस", "तो", "अच्छा", "ना", "हाँ"],
+  "nl": ["eh", "nou", "dus", "zeg maar", "eigenlijk", "gewoon"],
+  "sv": ["eh", "typ", "liksom", "alltså", "asså", "ju"],
+  "pl": ["no", "tego", "jakby", "wiesz", "znaczy", "właściwie"],
+  "tr": ["şey", "yani", "hani", "işte", "aslında"]
+}

@@ -7,23 +7,44 @@ struct ScriptSeerApp: App {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var showSplash = true
 
+    // Initialize services early
+    private let remoteInput = RemoteInputService.shared
+    private let settingsSync = SettingsSyncService.shared
+    private let watchConnectivity = WatchConnectivityManager.shared
+
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema(versionedSchema: SchemaV1.self)
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let schema = Schema(versionedSchema: SchemaV4.self)
+
+        // Try CloudKit-enabled configuration first
+        let cloudConfig = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: false,
+            cloudKitDatabase: .automatic
+        )
 
         do {
             return try ModelContainer(
                 for: schema,
                 migrationPlan: ScriptSeerMigrationPlan.self,
-                configurations: [modelConfiguration]
+                configurations: [cloudConfig]
             )
         } catch {
-            // Fallback: try in-memory store so the app remains usable
-            let fallback = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            // Fallback: local-only if CloudKit fails
+            let localConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
             do {
-                return try ModelContainer(for: schema, configurations: [fallback])
+                return try ModelContainer(
+                    for: schema,
+                    migrationPlan: ScriptSeerMigrationPlan.self,
+                    configurations: [localConfig]
+                )
             } catch {
-                fatalError("Could not create ModelContainer: \(error)")
+                // Last resort: in-memory
+                let fallback = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+                do {
+                    return try ModelContainer(for: schema, configurations: [fallback])
+                } catch {
+                    fatalError("Could not create ModelContainer: \(error)")
+                }
             }
         }
     }()
@@ -48,6 +69,14 @@ struct ScriptSeerApp: App {
                     }
                     .transition(.opacity)
                 }
+            }
+            .onAppear {
+                // Route Watch actions through RemoteInputService
+                watchConnectivity.onAction = { action in
+                    remoteInput.dispatch(action)
+                }
+                // Push settings to iCloud on launch
+                settingsSync.pushAll()
             }
         }
         .modelContainer(sharedModelContainer)

@@ -138,9 +138,11 @@ struct HomeView: View {
     }
 
     private func cleanupEmptyScripts() {
-        for script in scripts where !script.isInTrash {
+        let candidates = scripts.lazy.filter { !$0.isInTrash && $0.title == "Untitled Script" }
+        for script in candidates {
             let isEmpty = script.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            if isEmpty && script.title == "Untitled Script" {
+            let isOldEnough = script.createdAt.timeIntervalSinceNow < -60
+            if isEmpty && isOldEnough {
                 modelContext.delete(script)
             }
         }

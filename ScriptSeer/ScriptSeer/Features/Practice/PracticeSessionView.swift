@@ -1,7 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct PracticeSessionView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @State var practiceSession: PracticeSession
     @State private var timer: Timer?
     @State private var tick: Int = 0
@@ -11,6 +13,7 @@ struct PracticeSessionView: View {
     @State private var lastWordIndex: Int = -1
     @State private var stallTimer: Timer?
     @State private var autoStumbleFlashLine: Int? = nil
+    @State private var remoteInput = RemoteInputService.shared
 
     init(script: Script) {
         self._practiceSession = State(initialValue: PracticeSession(script: script))
@@ -50,6 +53,84 @@ struct PracticeSessionView: View {
         }
         .onChange(of: speechEngine.state) { oldState, newState in
             handleSpeechStateChange(from: oldState, to: newState)
+        }
+        .onChange(of: remoteInput.latestAction?.id) {
+            guard practiceSession.isActive,
+                  let (action, _) = remoteInput.latestAction else { return }
+            switch action {
+            case .playPause, .nextLine:
+                if isLastLine {
+                    practiceSession.finish()
+                    savePracticeRecord()
+                    stopTimer()
+                    stopSpeechFollow()
+                    SSHaptics.success()
+                } else {
+                    practiceSession.advanceLine()
+                    SSHaptics.light()
+                }
+            case .markStumble:
+                practiceSession.markStumble()
+                SSHaptics.medium()
+            case .jumpBack:
+                if practiceSession.currentLineIndex > 0 {
+                    practiceSession.currentLineIndex -= 1
+                }
+            default: break
+            }
+        }
+        .onKeyPress(.space) {
+            guard practiceSession.isActive else { return .ignored }
+            if isLastLine {
+                practiceSession.finish()
+                savePracticeRecord()
+                stopTimer()
+                stopSpeechFollow()
+                SSHaptics.success()
+            } else {
+                practiceSession.advanceLine()
+                SSHaptics.light()
+            }
+            return .handled
+        }
+        .onKeyPress(.return) {
+            guard practiceSession.isActive else { return .ignored }
+            if isLastLine {
+                practiceSession.finish()
+                savePracticeRecord()
+                stopTimer()
+                stopSpeechFollow()
+                SSHaptics.success()
+            } else {
+                practiceSession.advanceLine()
+                SSHaptics.light()
+            }
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "sS")) { _ in
+            guard practiceSession.isActive else { return .ignored }
+            practiceSession.markStumble()
+            SSHaptics.medium()
+            return .handled
+        }
+        .onKeyPress(.upArrow) {
+            guard practiceSession.isActive, practiceSession.currentLineIndex > 0 else { return .ignored }
+            practiceSession.currentLineIndex -= 1
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            guard practiceSession.isActive else { return .ignored }
+            if isLastLine {
+                practiceSession.finish()
+                savePracticeRecord()
+                stopTimer()
+                stopSpeechFollow()
+                SSHaptics.success()
+            } else {
+                practiceSession.advanceLine()
+                SSHaptics.light()
+            }
+            return .handled
         }
     }
 
@@ -326,6 +407,7 @@ struct PracticeSessionView: View {
                 // Finish (replaces Next + Done on last line)
                 Button {
                     practiceSession.finish()
+                    savePracticeRecord()
                     stopTimer()
                     stopSpeechFollow()
                     SSHaptics.success()
@@ -372,6 +454,7 @@ struct PracticeSessionView: View {
                 // Done
                 Button {
                     practiceSession.finish()
+                    savePracticeRecord()
                     stopTimer()
                     stopSpeechFollow()
                     SSHaptics.success()
@@ -418,8 +501,10 @@ struct PracticeSessionView: View {
     // MARK: - Speech Follow
 
     private func startSpeechFollow() {
-        speechEngine.mode = .smart
-        speechEngine.prepare(scriptContent: practiceSession.script.content)
+        let savedMode = UserDefaults.standard.string(forKey: "speechFollowMode") ?? "Smart"
+        speechEngine.mode = SpeechFollowMode(rawValue: savedMode) ?? .smart
+        speechEngine.applyStoredLanguageSetting()
+        speechEngine.prepare(scriptContent: practiceSession.content)
         Task {
             let authorized = await speechEngine.requestAuthorization()
             if authorized {
@@ -438,6 +523,19 @@ struct PracticeSessionView: View {
         if speechEngine.state != .idle && speechEngine.state != .stopped {
             speechEngine.stop()
         }
+    }
+
+    private func savePracticeRecord() {
+        practiceSession.script.lastPracticedAt = Date()
+        let record = PracticeRecord(
+            date: practiceSession.startTime ?? Date(),
+            duration: practiceSession.elapsedTime,
+            wordsPerMinute: practiceSession.wordsPerMinute,
+            stumbleCount: practiceSession.stumbles.count,
+            usedSpeechFollow: practiceSession.usedSpeechFollow,
+            script: practiceSession.script
+        )
+        modelContext.insert(record)
     }
 
     private func handleWordAdvance(_ newWordIndex: Int) {
@@ -480,7 +578,8 @@ struct PracticeSessionView: View {
                 stallTimer = nil
                 return
             }
-            if speechEngine.currentWordIndex == lastWordIndex &&
+            let baseline = lastWordIndex
+            if speechEngine.currentWordIndex == baseline &&
                (speechEngine.state == .following || speechEngine.state == .lowConfidence) {
                 triggerAutoStumble()
             }

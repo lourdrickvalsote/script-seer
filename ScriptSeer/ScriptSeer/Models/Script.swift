@@ -3,23 +3,31 @@ import SwiftData
 
 @Model
 final class Script {
-    var id: UUID
-    var title: String
-    var content: String
-    var createdAt: Date
-    var updatedAt: Date
-    var estimatedDuration: TimeInterval
-    var tags: [String]
-    var isMirrorDefault: Bool
+    var id: UUID = UUID()
+    var title: String = "Untitled Script"
+    var content: String = ""
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
+    var estimatedDuration: TimeInterval = 0
+    var tags: [String] = []
+    var isMirrorDefault: Bool = false
     var deletedAt: Date?
+    var lastPromptedAt: Date?
+    var lastPracticedAt: Date?
 
     @Relationship(deleteRule: .cascade, inverse: \ScriptVariant.parentScript)
-    var variants: [ScriptVariant]
+    var variants: [ScriptVariant] = []
 
     var folder: ScriptFolder?
 
     @Relationship(deleteRule: .cascade, inverse: \ScriptRevision.script)
-    var revisions: [ScriptRevision]
+    var revisions: [ScriptRevision] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \PracticeRecord.script)
+    var practiceRecords: [PracticeRecord] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \AudioTake.script)
+    var audioTakes: [AudioTake] = []
 
     init(
         title: String = "Untitled Script",
@@ -36,8 +44,12 @@ final class Script {
         self.tags = tags
         self.isMirrorDefault = isMirrorDefault
         self.deletedAt = nil
+        self.lastPromptedAt = nil
+        self.lastPracticedAt = nil
         self.variants = []
         self.revisions = []
+        self.practiceRecords = []
+        self.audioTakes = []
     }
 
     func softDelete() {

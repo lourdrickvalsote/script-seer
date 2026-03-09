@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage("defaultLineSpacing") private var defaultLineSpacing = 16.0
     @AppStorage("defaultCountdown") private var defaultCountdown = 3
     @AppStorage("speechFollowMode") private var speechFollowMode = "Smart"
+    @AppStorage("speechLanguage") private var speechLanguage = "auto"
 
     private var defaultCountdownDouble: Binding<Double> {
         Binding(
@@ -16,8 +17,16 @@ struct SettingsView: View {
     }
     @AppStorage("hapticsEnabled") private var hapticsEnabled = true
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+    @State private var remoteInput = RemoteInputService.shared
+    @State private var watchManager = WatchConnectivityManager.shared
 
     private var aiStatus: AppleIntelligenceStatus { .current() }
+
+    private var speechLanguageDisplayName: String {
+        if speechLanguage == "auto" { return "Auto" }
+        let locale = Locale(identifier: speechLanguage)
+        return locale.localizedString(forIdentifier: speechLanguage) ?? speechLanguage
+    }
 
     var body: some View {
         NavigationStack {
@@ -68,26 +77,139 @@ struct SettingsView: View {
 
                     // Speech Follow
                     SettingsSection("Speech Follow") {
-                        HStack {
-                            SettingsIconLabel(icon: "waveform", title: "Default Mode")
-                            Spacer()
-                            Picker("", selection: $speechFollowMode) {
-                                Text("Strict").tag("Strict")
-                                Text("Smart").tag("Smart")
+                        VStack(spacing: 0) {
+                            HStack {
+                                SettingsIconLabel(icon: "waveform", title: "Default Mode")
+                                Spacer()
+                                Picker("", selection: $speechFollowMode) {
+                                    Text("Strict").tag("Strict")
+                                    Text("Smart").tag("Smart")
+                                }
+                                .labelsHidden()
+                                .tint(SSColors.accent)
                             }
-                            .labelsHidden()
-                            .tint(SSColors.accent)
+
+                            SettingsDivider()
+
+                            NavigationLink(destination: SpeechLanguagePickerView()) {
+                                HStack {
+                                    SettingsIconLabel(icon: "globe", title: "Language")
+                                    Spacer()
+                                    Text(speechLanguageDisplayName)
+                                        .font(SSTypography.caption)
+                                        .foregroundStyle(SSColors.textTertiary)
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(SSColors.textTertiary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    // iCloud Sync
+                    SettingsSection("iCloud Sync") {
+                        VStack(spacing: 0) {
+                            HStack(spacing: SSSpacing.sm) {
+                                Image(systemName: "icloud.fill")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(SSColors.accent)
+                                    .frame(width: 28, height: 28)
+                                    .background(SSColors.accentWarm)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Scripts & Settings")
+                                        .font(SSTypography.body)
+                                        .foregroundStyle(SSColors.textPrimary)
+                                    Text("Syncs automatically when signed into iCloud")
+                                        .font(SSTypography.caption)
+                                        .foregroundStyle(SSColors.textTertiary)
+                                }
+
+                                Spacer()
+                            }
+
+                            SettingsDivider()
+
+                            HStack(spacing: SSSpacing.sm) {
+                                Image(systemName: "info.circle")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(SSColors.textTertiary)
+                                Text("Recordings stay on this device only.")
+                                    .font(SSTypography.caption)
+                                    .foregroundStyle(SSColors.textTertiary)
+                            }
                         }
                     }
 
                     // Remote Controls
                     SettingsSection("Remote Controls") {
-                        VStack(alignment: .leading, spacing: SSSpacing.sm) {
-                            remoteDeviceRow(icon: "keyboard", title: "Bluetooth Clickers", detail: "Page Up/Down, arrows, Return")
+                        VStack(spacing: 0) {
+                            HStack(spacing: SSSpacing.sm) {
+                                Image(systemName: "gamecontroller.fill")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(remoteInput.isControllerConnected ? SSColors.accent : SSColors.textTertiary)
+                                    .frame(width: 28, height: 28)
+                                    .background(SSColors.accentWarm)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Game Controller")
+                                        .font(SSTypography.body)
+                                        .foregroundStyle(SSColors.textPrimary)
+                                    HStack(spacing: 4) {
+                                        Circle()
+                                            .fill(remoteInput.isControllerConnected ? .green : SSColors.textTertiary)
+                                            .frame(width: 6, height: 6)
+                                        Text(remoteInput.isControllerConnected ? remoteInput.controllerName : "No device")
+                                            .font(SSTypography.caption)
+                                            .foregroundStyle(remoteInput.isControllerConnected ? SSColors.textSecondary : SSColors.textTertiary)
+                                    }
+                                }
+
+                                Spacer()
+                            }
+
                             SettingsDivider()
-                            remoteDeviceRow(icon: "gamecontroller", title: "Game Controllers", detail: "Xbox, PlayStation, Siri Remote")
+
+                            HStack(spacing: SSSpacing.sm) {
+                                Image(systemName: "applewatch")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(watchManager.isWatchReachable ? SSColors.accent : SSColors.textTertiary)
+                                    .frame(width: 28, height: 28)
+                                    .background(SSColors.accentWarm)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Apple Watch")
+                                        .font(SSTypography.body)
+                                        .foregroundStyle(SSColors.textPrimary)
+                                    HStack(spacing: 4) {
+                                        Circle()
+                                            .fill(watchManager.isWatchReachable ? .green : SSColors.textTertiary)
+                                            .frame(width: 6, height: 6)
+                                        Text(watchManager.isWatchReachable ? "Connected" : "Not connected")
+                                            .font(SSTypography.caption)
+                                            .foregroundStyle(watchManager.isWatchReachable ? SSColors.textSecondary : SSColors.textTertiary)
+                                    }
+                                }
+
+                                Spacer()
+                            }
+
                             SettingsDivider()
-                            remoteDeviceRow(icon: "circle.circle", title: "Foot Pedals", detail: "HID keyboard pedals")
+
+                            NavigationLink(destination: RemoteButtonMappingView()) {
+                                HStack {
+                                    SettingsIconLabel(icon: "slider.horizontal.3", title: "Button Mapping")
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(SSColors.textTertiary)
+                                }
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
 
@@ -221,26 +343,6 @@ struct SettingsView: View {
             .background(SSColors.background)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-
-    private func remoteDeviceRow(icon: String, title: String, detail: String) -> some View {
-        HStack(spacing: SSSpacing.sm) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(SSColors.accent)
-                .frame(width: 28, height: 28)
-                .background(SSColors.accentWarm)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(SSTypography.body)
-                    .foregroundStyle(SSColors.textPrimary)
-                Text(detail)
-                    .font(SSTypography.caption)
-                    .foregroundStyle(SSColors.textTertiary)
-            }
         }
     }
 

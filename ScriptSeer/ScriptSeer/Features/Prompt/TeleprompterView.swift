@@ -14,7 +14,12 @@ struct TeleprompterView: View {
     @State private var currentFocusLine: Int = 0
     @State private var showScrubBar = false
     @State private var externalDisplay = ExternalDisplayManager()
-    @State private var gameController = GameControllerManager()
+    @State private var remoteInput = RemoteInputService.shared
+    @State private var pipService = PiPTeleprompterService()
+    @State private var isDraggingScript = false
+    @State private var wasPlayingBeforeDrag = false
+    @State private var dragStartOffset: CGFloat = 0
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     init(script: Script, contentOverride: String? = nil) {
         self._session = State(initialValue: PromptSession(script: script, contentOverride: contentOverride))
@@ -75,17 +80,41 @@ struct TeleprompterView: View {
         }
         .onDisappear {
             stopAllTimers()
+            pipService.stopPiP()
+            speechEngine.stop()
             externalDisplay.dismissExternalDisplay()
         }
         .onAppear {
-            gameController.onPlayPause = { session.togglePlayPause() }
-            gameController.onJumpBack = { session.jumpBack() }
-            gameController.onJumpForward = { session.jumpForward() }
-            gameController.onSpeedUp = { session.scrollSpeed = min(session.scrollSpeed + 5, 120) }
-            gameController.onSpeedDown = { session.scrollSpeed = max(session.scrollSpeed - 5, 10) }
-
+            pipService.prepare(session: session, speechEngine: speechEngine)
             if externalDisplay.isExternalDisplayConnected && externalDisplay.isExternalOutputEnabled {
                 externalDisplay.showTeleprompter(session: session)
+            }
+        }
+        .onChange(of: pipService.isPiPActive) { _, active in
+            if active {
+                // PiP takes over scrolling
+                stopScrollTimer()
+            } else {
+                // Resume view's scroll timer if still prompting
+                if session.state == .prompting {
+                    startScrollTimer()
+                }
+            }
+        }
+        .onChange(of: pipService.wantsRestore) { _, wants in
+            if wants {
+                pipService.wantsRestore = false
+            }
+        }
+        .onChange(of: remoteInput.latestAction?.id) {
+            guard let (action, _) = remoteInput.latestAction else { return }
+            switch action {
+            case .playPause: session.togglePlayPause()
+            case .jumpBack: session.jumpBack()
+            case .jumpForward: session.jumpForward()
+            case .speedUp: session.scrollSpeed = min(session.scrollSpeed + 5, 120)
+            case .speedDown: session.scrollSpeed = max(session.scrollSpeed - 5, 10)
+            default: break
             }
         }
         .onKeyPress(.space) {
@@ -328,15 +357,47 @@ struct TeleprompterView: View {
             }
         }
         .clipped()
+        .background(PiPHostView(service: pipService).frame(width: 1, height: 1).opacity(0.01))
         .contentShape(Rectangle())
-        .onTapGesture {
-            session.togglePlayPause()
-        }
+        .gesture(
+            DragGesture(minimumDistance: 8)
+                .onChanged { value in
+                    // Pause auto-scroll while dragging
+                    if !isDraggingScript {
+                        isDraggingScript = true
+                        wasPlayingBeforeDrag = session.state == .prompting
+                        if session.state == .prompting {
+                            session.pause()
+                            stopScrollTimer()
+                        }
+                        dragStartOffset = session.scrollOffset
+                    }
+                    // Drag up = increase offset (scroll forward), drag down = decrease (scroll back)
+                    let newOffset = dragStartOffset - value.translation.height
+                    session.scrollOffset = max(0, newOffset)
+                }
+                .onEnded { _ in
+                    isDraggingScript = false
+                    // Resume auto-scroll if it was playing before drag
+                    if wasPlayingBeforeDrag {
+                        session.play()
+                        startScrollTimer()
+                    }
+                }
+        )
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded {
+                    if !isDraggingScript {
+                        session.togglePlayPause()
+                    }
+                }
+        )
     }
 
     @ViewBuilder
     private func promptTextView(width: CGFloat, height: CGFloat) -> some View {
-        let margin = session.horizontalMargin
+        let margin = sizeClass == .compact ? min(session.horizontalMargin, 12) : session.horizontalMargin
 
         VStack(alignment: .leading, spacing: session.lineSpacing) {
             // Top padding (start with text at center)
@@ -362,17 +423,24 @@ struct TeleprompterView: View {
                 }
 
             case .oneLine, .twoLine, .chunk:
-                let lines = CueParser.stripCues(session.content)
-                    .components(separatedBy: .newlines)
-                    .flatMap { paragraph in
-                        paragraph.isEmpty ? [""] : splitIntoLines(paragraph, mode: session.displayMode)
+                let chunkSize: Int = {
+                    switch session.displayMode {
+                    case .oneLine: return 4
+                    case .twoLine: return 8
+                    case .chunk: return 12
+                    case .paragraph: return Int.max
                     }
+                }()
+                let paragraphs = session.content
+                    .components(separatedBy: .newlines)
+                    .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                let allChunks: [String] = paragraphs.flatMap { para in
+                    splitIntoRichLines(para, wordsPerChunk: chunkSize)
+                }
 
-                ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                ForEach(Array(allChunks.enumerated()), id: \.offset) { index, chunk in
                     let isHook = session.hookModeEnabled && index < session.hookLineCount
-                    Text(line)
-                        .font(SSTypography.promptText(size: isHook ? session.textSize * 1.3 : session.textSize))
-                        .foregroundStyle(session.theme.textColor)
+                    richPromptText(chunk, sizeOverride: isHook ? session.textSize * 1.3 : nil)
                         .lineSpacing(session.lineSpacing)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .opacity(isHook ? 1.0 : 0.85)
@@ -397,19 +465,45 @@ struct TeleprompterView: View {
         )
     }
 
-    private func splitIntoLines(_ text: String, mode: PromptDisplayMode) -> [String] {
-        let words = text.split(separator: " ").map(String.init)
-        let chunkSize: Int
-        switch mode {
-        case .oneLine: chunkSize = 4
-        case .twoLine: chunkSize = 8
-        case .chunk: chunkSize = 12
-        case .paragraph: return [text]
+    /// Splits text into chunks of `wordsPerChunk` content words, preserving cue markers inline.
+    /// Cue tokens (e.g. [PAUSE], [LOOK UP]) don't count toward the word limit.
+    private func splitIntoRichLines(_ text: String, wordsPerChunk: Int) -> [String] {
+        // Tokenize preserving cue markers as single tokens (including multi-word like [LOOK UP])
+        let cuePattern = "\\[[A-Z][A-Z ]*\\]"
+        var tokens: [(text: String, isCue: Bool)] = []
+        var remaining = text[...]
+
+        while let match = remaining.range(of: cuePattern, options: .regularExpression) {
+            let before = remaining[remaining.startIndex..<match.lowerBound]
+            for word in before.split(separator: " ", omittingEmptySubsequences: true) {
+                tokens.append((String(word), false))
+            }
+            tokens.append((String(remaining[match]), true))
+            remaining = remaining[match.upperBound...]
         }
-        return stride(from: 0, to: words.count, by: chunkSize).map { start in
-            let end = min(start + chunkSize, words.count)
-            return words[start..<end].joined(separator: " ")
+        for word in remaining.split(separator: " ", omittingEmptySubsequences: true) {
+            tokens.append((String(word), false))
         }
+
+        guard !tokens.isEmpty else { return [text] }
+
+        var chunks: [String] = []
+        var current: [String] = []
+        var wordCount = 0
+
+        for (token, isCue) in tokens {
+            current.append(token)
+            if !isCue { wordCount += 1 }
+            if wordCount >= wordsPerChunk {
+                chunks.append(current.joined(separator: " "))
+                current = []
+                wordCount = 0
+            }
+        }
+        if !current.isEmpty {
+            chunks.append(current.joined(separator: " "))
+        }
+        return chunks
     }
 
     /// Renders script content with cue markers, speaker labels, and section dividers
@@ -443,7 +537,7 @@ struct TeleprompterView: View {
     // MARK: - Focus Window
 
     private var focusWindowContent: some View {
-        let allLines = splitScriptIntoChunks(
+        let allLines = splitIntoRichLines(
             session.content,
             wordsPerChunk: focusConfig.preset.wordsPerChunk
         )
@@ -463,18 +557,9 @@ struct TeleprompterView: View {
         .scaleEffect(x: session.isMirrored ? -1 : 1, y: 1)
     }
 
-    private func splitScriptIntoChunks(_ text: String, wordsPerChunk: Int) -> [String] {
-        let chunkSize = max(1, wordsPerChunk)
-        let words = text.split(separator: " ").map(String.init)
-        return stride(from: 0, to: words.count, by: chunkSize).map { start in
-            let end = min(start + chunkSize, words.count)
-            return words[start..<end].joined(separator: " ")
-        }
-    }
-
     private func startFocusTimer() {
         stopScrollTimer()
-        let totalLines = splitScriptIntoChunks(
+        let totalLines = splitIntoRichLines(
             session.content,
             wordsPerChunk: focusConfig.preset.wordsPerChunk
         ).count
@@ -485,6 +570,7 @@ struct TeleprompterView: View {
             if self.currentFocusLine >= totalLines - 1 {
                 self.stopScrollTimer()
                 SSHaptics.success()
+                session.script.lastPromptedAt = Date()
                 session.complete()
                 return
             }
@@ -557,6 +643,23 @@ struct TeleprompterView: View {
                         isActive: speechEngine.state != .idle && speechEngine.state != .stopped
                     ) {
                         toggleSpeechFollow()
+                    }
+
+                    // Picture in Picture
+                    if pipService.isPiPPossible {
+                        PromptControlButton(
+                            icon: pipService.isPiPActive ? "pip.exit" : "pip.enter",
+                            label: "Picture in Picture",
+                            size: 16,
+                            isActive: pipService.isPiPActive
+                        ) {
+                            if pipService.isPiPActive {
+                                pipService.stopPiP()
+                            } else {
+                                pipService.startPiP()
+                            }
+                            SSHaptics.selection()
+                        }
                     }
 
                     // Tune
@@ -767,11 +870,11 @@ struct TeleprompterView: View {
 
                             // Remote section
                             tuneSection("Remote") {
-                                if gameController.isControllerConnected {
+                                if remoteInput.isControllerConnected {
                                     HStack(spacing: SSSpacing.xs) {
                                         Image(systemName: "gamecontroller.fill")
                                             .foregroundStyle(SSColors.accent)
-                                        Text(gameController.controllerName)
+                                        Text(remoteInput.controllerName)
                                             .font(SSTypography.subheadline)
                                             .foregroundStyle(.white.opacity(0.85))
                                     }
@@ -1022,6 +1125,7 @@ struct TeleprompterView: View {
             if session.measuredContentHeight > 0, session.scrollOffset >= session.measuredContentHeight {
                 self.stopScrollTimer()
                 SSHaptics.success()
+                session.script.lastPromptedAt = Date()
                 session.complete()
             }
         }
@@ -1036,6 +1140,7 @@ struct TeleprompterView: View {
         countdownTimer?.invalidate()
         countdownTimer = nil
         stopScrollTimer()
+        pipService.stopPiP()
     }
 
     // MARK: - Speech Follow
@@ -1045,6 +1150,7 @@ struct TeleprompterView: View {
             // Apply user's preferred speech follow mode
             let savedMode = UserDefaults.standard.string(forKey: "speechFollowMode") ?? "Smart"
             speechEngine.mode = SpeechFollowMode(rawValue: savedMode) ?? .smart
+            speechEngine.applyStoredLanguageSetting()
             speechEngine.prepare(scriptContent: session.content)
             Task {
                 let authorized = await speechEngine.requestAuthorization()

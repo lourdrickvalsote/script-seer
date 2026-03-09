@@ -12,7 +12,7 @@ struct SSGlassPanel<Content: View>: View {
             .padding(SSSpacing.md)
             .background(
                 RoundedRectangle(cornerRadius: SSRadius.lg)
-                    .fill(SSColors.surfaceElevated)
+                    .fill(SSColors.surfaceGlass)
             )
             .shadow(color: SSColors.shadow, radius: 6, x: 0, y: 2)
     }

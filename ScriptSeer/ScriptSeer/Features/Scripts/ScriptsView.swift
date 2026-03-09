@@ -27,6 +27,12 @@ struct ScriptsView: View {
     @State private var folderToDelete: ScriptFolder?
     @State private var newScript: Script?
     @State private var selectedScript: Script?
+    @State private var selectedTag: String?
+
+    private var allTags: [String] {
+        let tags = scripts.filter { !$0.isInTrash }.flatMap(\.tags)
+        return Array(Set(tags)).sorted()
+    }
 
     private var filteredScripts: [Script] {
         var filtered: [Script]
@@ -34,6 +40,10 @@ struct ScriptsView: View {
             filtered = scripts.filter { $0.folder?.id == folder.id && !$0.isInTrash }
         } else {
             filtered = scripts.filter { !$0.isInTrash }
+        }
+
+        if let tag = selectedTag {
+            filtered = filtered.filter { $0.tags.contains(tag) }
         }
 
         if !debouncedSearchText.isEmpty {
@@ -46,7 +56,8 @@ struct ScriptsView: View {
 
         switch sortOrder {
         case .recent:
-            return filtered.sorted { $0.updatedAt > $1.updatedAt }
+            // @Query already sorts by updatedAt desc; only re-sort if filtering changed the set
+            return filtered
         case .title:
             return filtered.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
@@ -98,6 +109,11 @@ struct ScriptsView: View {
                             // Folder filter chips
                             if !folders.isEmpty {
                                 folderFilterBar
+                            }
+
+                            // Tag filter chips
+                            if !allTags.isEmpty {
+                                tagFilterBar
                             }
                         }
                         .padding(.horizontal, SSSpacing.md)
@@ -301,6 +317,23 @@ struct ScriptsView: View {
                         } label: {
                             Label("Delete Folder", systemImage: "trash")
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Tag Filter Bar
+
+    private var tagFilterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: SSSpacing.xs) {
+                ForEach(allTags, id: \.self) { tag in
+                    FolderChip(
+                        name: tag,
+                        isSelected: selectedTag == tag
+                    ) {
+                        selectedTag = (selectedTag == tag) ? nil : tag
                     }
                 }
             }

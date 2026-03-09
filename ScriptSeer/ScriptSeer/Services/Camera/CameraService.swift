@@ -117,7 +117,7 @@ final class CameraService: NSObject {
     }
 
     func teardownSession() {
-        stopSession()
+        captureSession.stopRunning()
         captureSession.beginConfiguration()
         for input in captureSession.inputs {
             captureSession.removeInput(input)
@@ -128,6 +128,7 @@ final class CameraService: NSObject {
         captureSession.commitConfiguration()
         videoOutput = nil
         currentDevice = nil
+        isSessionRunning = false
     }
 
     func switchCamera() {
@@ -170,7 +171,6 @@ final class CameraService: NSObject {
                 return
             }
             self.captureSession.addInput(input)
-            self.currentDevice = device
 
             // Re-add audio
             if let audioDevice = AVCaptureDevice.default(for: .audio),
@@ -182,6 +182,7 @@ final class CameraService: NSObject {
             self.captureSession.commitConfiguration()
 
             DispatchQueue.main.async {
+                self.currentDevice = device
                 self.currentPosition = newPosition
                 self.isSwitchingCamera = false
             }
@@ -393,17 +394,22 @@ extension CameraService: AVCaptureFileOutputRecordingDelegate {
         error: Error?
     ) {
         DispatchQueue.main.async { [weak self] in
-            if error != nil {
-                self?.recordingState = .failed("Recording failed. Please try again.")
-            } else {
-                self?.takeCount += 1
-                self?.lastSavedURL = outputFileURL
-                self?.saveToPhotos(url: outputFileURL) { [weak self] success in
-                    if success {
-                        self?.recordingState = .saved
-                    } else {
-                        self?.recordingState = .failed("Take recorded but could not be saved to Photos. Check permissions in Settings.")
-                    }
+            if let error = error {
+                let fileExists = FileManager.default.fileExists(atPath: outputFileURL.path)
+                if !fileExists {
+                    self?.recordingState = .failed("Recording failed. Please try again.")
+                    return
+                }
+                // File exists despite error (e.g. AVError.recordingSuccessfullyFinished) — fall through
+            }
+
+            self?.takeCount += 1
+            self?.lastSavedURL = outputFileURL
+            self?.saveToPhotos(url: outputFileURL) { [weak self] success in
+                if success {
+                    self?.recordingState = .saved
+                } else {
+                    self?.recordingState = .failed("Take recorded but could not be saved to Photos. Check permissions in Settings.")
                 }
             }
         }

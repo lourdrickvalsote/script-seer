@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 import Speech
 import AVFoundation
 
@@ -33,13 +34,16 @@ final class SpeechFollowEngine {
     var isAvailable: Bool = false
     var debugLog: [String] = []
     var showDebugOverlay: Bool = false
+    private var restartCount: Int = 0
+    private let maxRestarts = 3
 
     // Confidence Scroll — adaptive speed from speaking pace
     var adaptiveSpeed: Double = 40.0 // current smoothed speed in pt/s
     var speakingWPM: Double = 0.0 // current estimated words per minute
     var isConfidenceScrollEnabled: Bool = false
 
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
+    private(set) var currentLocale: Locale = Locale.current
+    private var speechRecognizer: SFSpeechRecognizer? = SFSpeechRecognizer(locale: Locale.current)
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
@@ -56,6 +60,21 @@ final class SpeechFollowEngine {
     private let paceWindowSize = 10 // words to average over
     private let speedDampingFactor = 0.15 // how quickly speed adjusts (0-1, lower = smoother)
 
+    func setLocale(_ locale: Locale) {
+        currentLocale = locale
+        speechRecognizer = SFSpeechRecognizer(locale: locale)
+        debugLog(message: "Locale set to \(locale.identifier)")
+    }
+
+    func applyStoredLanguageSetting() {
+        let stored = UserDefaults.standard.string(forKey: "speechLanguage") ?? "auto"
+        if stored == "auto" {
+            setLocale(Locale.current)
+        } else {
+            setLocale(Locale(identifier: stored))
+        }
+    }
+
     func prepare(scriptContent: String) {
         scriptWords = scriptContent
             .components(separatedBy: .whitespacesAndNewlines)
@@ -63,9 +82,9 @@ final class SpeechFollowEngine {
             .filter { !$0.isEmpty }
         currentWordIndex = 0
         confidence = 1.0
-        cachedFillerWords = Self.fillerWordsForCurrentLocale()
-        cachedStopWords = Self.stopWords
-        debugLog(message: "Prepared with \(scriptWords.count) words")
+        cachedFillerWords = Self.loadFillerWords(for: currentLocale)
+        cachedStopWords = Self.detectStopWords(in: scriptContent, locale: currentLocale)
+        debugLog(message: "Prepared with \(scriptWords.count) words, \(cachedStopWords.count) stop words, locale: \(currentLocale.identifier)")
     }
 
     func requestAuthorization() async -> Bool {
@@ -88,6 +107,7 @@ final class SpeechFollowEngine {
         }
 
         self.useExistingAudioSession = useExistingAudioSession
+        restartCount = 0
 
         do {
             try startRecognition()
@@ -180,8 +200,25 @@ final class SpeechFollowEngine {
                         }
                     }
                     if self.state == .listening || self.state == .following {
-                        self.state = .lowConfidence
-                        self.debugLog(message: "Recognition ended, falling back")
+                        self.debugLog(message: "Recognition ended, attempting restart (\(self.restartCount)/\(self.maxRestarts))")
+                        if self.restartCount < self.maxRestarts {
+                            self.restartCount += 1
+                            self.state = .lowConfidence
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                guard self.state == .lowConfidence else { return }
+                                do {
+                                    try self.startRecognition()
+                                    self.state = .listening
+                                    self.debugLog(message: "Recognition restarted successfully")
+                                } catch {
+                                    self.state = .lowConfidence
+                                    self.debugLog(message: "Restart failed: \(error.localizedDescription)")
+                                }
+                            }
+                        } else {
+                            self.state = .lowConfidence
+                            self.debugLog(message: "Max restarts reached, falling back")
+                        }
                     }
                 }
             }
@@ -365,6 +402,11 @@ final class SpeechFollowEngine {
         debugLog(message: "Pace: \(Int(currentWPM)) wpm → speed: \(Int(adaptiveSpeed)) pt/s")
     }
 
+    func configureForBackground() {
+        // Increase max restarts for long PiP sessions
+        // On-device recognition is already preferred (line 154)
+    }
+
     func resetPaceTracking(baseSpeed: Double) {
         wordTimestamps = []
         adaptiveSpeed = baseSpeed
@@ -378,23 +420,56 @@ final class SpeechFollowEngine {
         if debugLog.count > 50 { debugLog.removeFirst() }
     }
 
-    // Common words that appear too frequently to be reliable anchors for matching.
-    // They're still used for alignment but don't count toward the content match threshold.
-    private static let stopWords: Set<String> = [
-        "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "do", "does", "did", "will", "would", "could",
-        "should", "may", "might", "shall", "can", "need", "must",
-        "i", "you", "he", "she", "it", "we", "they", "me", "him", "her",
-        "us", "them", "my", "your", "his", "its", "our", "their",
-        "this", "that", "these", "those", "what", "which", "who", "whom",
-        "and", "but", "or", "nor", "not", "no", "if", "then", "than",
-        "to", "of", "in", "on", "at", "by", "for", "with", "from",
-        "up", "out", "off", "into", "over", "after", "before",
-        "just", "very", "also", "too", "so", "as"
-    ]
+    // MARK: - NLTagger-based Stop Word Detection
 
-    private static func fillerWordsForCurrentLocale() -> Set<String> {
-        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+    /// Uses NaturalLanguage framework to identify function words (determiners, prepositions,
+    /// pronouns, conjunctions, particles) in the script text. Works for 60+ languages automatically.
+    private static func detectStopWords(in text: String, locale: Locale) -> Set<String> {
+        let tagger = NLTagger(tagSchemes: [.lexicalClass])
+        tagger.string = text
+        let language = NLLanguage(rawValue: locale.language.languageCode?.identifier ?? "en")
+        tagger.setLanguage(language, range: text.startIndex..<text.endIndex)
+
+        let functionClasses: Set<NLTag> = [
+            .determiner, .preposition, .pronoun, .conjunction, .particle
+        ]
+
+        var stopWords = Set<String>()
+        tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .lexicalClass) { tag, tokenRange in
+            if let tag, functionClasses.contains(tag) {
+                let word = String(text[tokenRange]).lowercased().trimmingCharacters(in: .punctuationCharacters)
+                if !word.isEmpty {
+                    stopWords.insert(word)
+                }
+            }
+            return true
+        }
+
+        return stopWords
+    }
+
+    // MARK: - Filler Words (loaded from bundled JSON)
+
+    /// Loads filler words from filler_words.json, falling back to English defaults.
+    private static func loadFillerWords(for locale: Locale) -> Set<String> {
+        let lang = locale.language.languageCode?.identifier ?? "en"
+
+        guard let url = Bundle.main.url(forResource: "filler_words", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let dict = try? JSONDecoder().decode([String: [String]].self, from: data) else {
+            return fillerWordsFallback(for: lang)
+        }
+
+        if let words = dict[lang] {
+            return Set(words)
+        } else if let words = dict["en"] {
+            return Set(words)
+        }
+        return fillerWordsFallback(for: lang)
+    }
+
+    /// Hardcoded fallback in case the JSON file is missing.
+    private static func fillerWordsFallback(for lang: String) -> Set<String> {
         switch lang {
         case "es": return ["eh", "este", "bueno", "pues", "o sea", "como"]
         case "fr": return ["euh", "ben", "donc", "genre", "enfin", "voilà"]

@@ -14,18 +14,14 @@ struct FocusWindowView: View {
             VStack(spacing: config.preset.lineSpacing) {
                 // Past context (de-emphasized)
                 ForEach(contextBefore, id: \.self) { line in
-                    Text(line)
-                        .font(SSTypography.promptText(size: textSize * 0.85))
-                        .foregroundStyle(theme.textColor.opacity(config.deemphasizePastFuture ? 0.25 : 0.6))
+                    richText(line, size: textSize * 0.85, color: theme.textColor.opacity(config.deemphasizePastFuture ? 0.25 : 0.6))
                         .lineSpacing(4)
                         .multilineTextAlignment(.center)
                 }
 
                 // Current line (highlighted)
                 if let currentLine {
-                    Text(currentLine)
-                        .font(SSTypography.promptText(size: textSize))
-                        .foregroundStyle(theme.textColor)
+                    richText(currentLine, size: textSize, color: theme.textColor)
                         .lineSpacing(6)
                         .multilineTextAlignment(.center)
                         .shadow(color: config.highlightCurrent ? theme.textColor.opacity(0.3) : .clear, radius: 8)
@@ -34,9 +30,7 @@ struct FocusWindowView: View {
 
                 // Future context (de-emphasized)
                 ForEach(contextAfter, id: \.self) { line in
-                    Text(line)
-                        .font(SSTypography.promptText(size: textSize * 0.85))
-                        .foregroundStyle(theme.textColor.opacity(config.deemphasizePastFuture ? 0.3 : 0.6))
+                    richText(line, size: textSize * 0.85, color: theme.textColor.opacity(config.deemphasizePastFuture ? 0.3 : 0.6))
                         .lineSpacing(4)
                         .multilineTextAlignment(.center)
                 }
@@ -45,6 +39,32 @@ struct FocusWindowView: View {
             .frame(width: geometry.size.width)
             .position(x: geometry.size.width / 2, y: yPosition)
         }
+    }
+
+    private func richText(_ content: String, size: CGFloat, color: Color) -> Text {
+        let segments = CueParser.parse(content)
+        var result = Text("")
+        for segment in segments {
+            switch segment.kind {
+            case .cue(let cue):
+                result = result + Text(" \(cue.displaySymbol) ")
+                    .font(.system(size: size * 0.7))
+                    .foregroundColor(cue.promptColor)
+            case .speaker(let name):
+                result = result + Text("\(name.uppercased()): ")
+                    .font(.system(size: size * 0.8, weight: .bold))
+                    .foregroundColor(SSColors.accent)
+            case .section(let title):
+                result = result + Text("— \(title) — ")
+                    .font(.system(size: size * 0.75, weight: .semibold))
+                    .foregroundColor(SSColors.silverSage)
+            case .text:
+                result = result + Text(segment.content)
+                    .font(SSTypography.promptText(size: size))
+                    .foregroundColor(color)
+            }
+        }
+        return result
     }
 
     private var currentLine: String? {

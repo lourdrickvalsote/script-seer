@@ -3,12 +3,12 @@ import SwiftData
 
 @Model
 final class ScriptRevision {
-    var id: UUID
-    var content: String
-    var title: String
-    var createdAt: Date
-    var wordCount: Int
-    var changeDescription: String
+    var id: UUID = UUID()
+    var content: String = ""
+    var title: String = ""
+    var createdAt: Date = Date()
+    var wordCount: Int = 0
+    var changeDescription: String = ""
 
     var script: Script?
 

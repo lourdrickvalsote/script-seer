@@ -71,6 +71,7 @@ final class PromptSession {
     var hookModeEnabled: Bool = false
     var hookLineCount: Int = 3
     var rigModeEnabled: Bool = false // landscape-first, mirrored, high contrast
+    var isPiPEnabled: Bool = false
     var startTime: Date?
     var elapsedSeconds: TimeInterval = 0
 

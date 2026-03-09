@@ -11,6 +11,8 @@ struct ScriptDetailView: View {
     @State private var showExportError = false
     @State private var exportErrorMessage = ""
     @State private var appeared = false
+    @State private var editingTags = false
+    @State private var newTagText = ""
     @FocusState private var titleFocused: Bool
 
     var body: some View {
@@ -21,6 +23,8 @@ struct ScriptDetailView: View {
                 tagsSection
                 contentCard
                 variantsSection
+                practiceHistorySection
+                audioTakesSection
             }
             .padding(.top, SSSpacing.xl)
 
@@ -123,6 +127,14 @@ struct ScriptDetailView: View {
             Text("·")
                 .foregroundStyle(SSColors.textTertiary)
             Text("Edited \(script.updatedAt.formatted(.relative(presentation: .named)))")
+            if let lastPrompted = script.lastPromptedAt {
+                Text("·").foregroundStyle(SSColors.textTertiary)
+                Text("Read \(lastPrompted.formatted(.relative(presentation: .named)))")
+            }
+            if let lastPracticed = script.lastPracticedAt {
+                Text("·").foregroundStyle(SSColors.textTertiary)
+                Text("Practiced \(lastPracticed.formatted(.relative(presentation: .named)))")
+            }
         }
         .font(SSTypography.footnote)
         .foregroundStyle(SSColors.textSecondary)
@@ -134,25 +146,99 @@ struct ScriptDetailView: View {
 
     @ViewBuilder
     private var tagsSection: some View {
-        if !script.tags.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: SSSpacing.xs) {
+        VStack(alignment: .leading, spacing: SSSpacing.xs) {
+            if editingTags {
+                // Edit mode
+                FlowLayout(spacing: SSSpacing.xs) {
                     ForEach(script.tags, id: \.self) { tag in
-                        Text(tag)
-                            .font(SSTypography.caption)
-                            .foregroundStyle(SSColors.accent)
-                            .padding(.horizontal, SSSpacing.sm)
-                            .padding(.vertical, SSSpacing.xxs)
-                            .background(
-                                Capsule()
-                                    .fill(SSColors.accentSubtle)
-                            )
+                        HStack(spacing: SSSpacing.xxs) {
+                            Text(tag)
+                                .font(SSTypography.caption)
+                            Button {
+                                script.tags.removeAll { $0 == tag }
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                        }
+                        .foregroundStyle(SSColors.accent)
+                        .padding(.horizontal, SSSpacing.sm)
+                        .padding(.vertical, SSSpacing.xxs)
+                        .background(
+                            Capsule()
+                                .fill(SSColors.accentSubtle)
+                        )
                     }
                 }
-                .padding(.horizontal, SSSpacing.md)
+
+                HStack(spacing: SSSpacing.xs) {
+                    TextField("New tag", text: $newTagText)
+                        .font(SSTypography.caption)
+                        .textFieldStyle(.plain)
+                        .padding(.horizontal, SSSpacing.sm)
+                        .padding(.vertical, SSSpacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: SSRadius.full)
+                                .fill(SSColors.surfaceElevated)
+                        )
+                        .onSubmit { addTag() }
+
+                    Button("Add") { addTag() }
+                        .font(SSTypography.caption)
+                        .foregroundStyle(SSColors.accent)
+                        .disabled(newTagText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    Spacer()
+
+                    Button("Done") {
+                        editingTags = false
+                        newTagText = ""
+                    }
+                    .font(SSTypography.caption)
+                    .foregroundStyle(SSColors.textSecondary)
+                }
+            } else if script.tags.isEmpty {
+                Button {
+                    editingTags = true
+                } label: {
+                    HStack(spacing: SSSpacing.xxs) {
+                        Image(systemName: "tag")
+                            .font(.system(size: 12))
+                        Text("Add tags")
+                            .font(SSTypography.caption)
+                    }
+                    .foregroundStyle(SSColors.textTertiary)
+                }
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: SSSpacing.xs) {
+                        ForEach(script.tags, id: \.self) { tag in
+                            Text(tag)
+                                .font(SSTypography.caption)
+                                .foregroundStyle(SSColors.accent)
+                                .padding(.horizontal, SSSpacing.sm)
+                                .padding(.vertical, SSSpacing.xxs)
+                                .background(
+                                    Capsule()
+                                        .fill(SSColors.accentSubtle)
+                                )
+                        }
+                    }
+                }
+                .onTapGesture {
+                    editingTags = true
+                }
             }
-            .modifier(CardEntrance(appeared: appeared, reduceMotion: reduceMotion, delay: 0.16))
         }
+        .padding(.horizontal, SSSpacing.md)
+        .modifier(CardEntrance(appeared: appeared, reduceMotion: reduceMotion, delay: 0.16))
+    }
+
+    private func addTag() {
+        let tag = newTagText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !tag.isEmpty, !script.tags.contains(tag) else { return }
+        script.tags.append(tag)
+        newTagText = ""
     }
 
     // MARK: - Content Card (scrollable)
@@ -254,6 +340,70 @@ struct ScriptDetailView: View {
         }
     }
 
+    // MARK: - Practice History Section
+
+    @ViewBuilder
+    private var practiceHistorySection: some View {
+        if !script.practiceRecords.isEmpty {
+            NavigationLink(destination: PracticeHistoryView(script: script)) {
+                HStack(spacing: SSSpacing.sm) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(SSColors.accent)
+
+                    Text("Practice History")
+                        .font(SSTypography.body)
+                        .foregroundStyle(SSColors.textPrimary)
+
+                    Spacer()
+
+                    Text("\(script.practiceRecords.count)")
+                        .font(SSTypography.caption)
+                        .foregroundStyle(SSColors.textTertiary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(SSColors.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, SSSpacing.md)
+            .modifier(CardEntrance(appeared: appeared, reduceMotion: reduceMotion, delay: 0.36))
+        }
+    }
+
+    // MARK: - Audio Takes Section
+
+    @ViewBuilder
+    private var audioTakesSection: some View {
+        if !script.audioTakes.isEmpty {
+            NavigationLink(destination: AudioTakesListView(script: script)) {
+                HStack(spacing: SSSpacing.sm) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(SSColors.accent)
+
+                    Text("Audio Takes")
+                        .font(SSTypography.body)
+                        .foregroundStyle(SSColors.textPrimary)
+
+                    Spacer()
+
+                    Text("\(script.audioTakes.count)")
+                        .font(SSTypography.caption)
+                        .foregroundStyle(SSColors.textTertiary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(SSColors.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, SSSpacing.md)
+            .modifier(CardEntrance(appeared: appeared, reduceMotion: reduceMotion, delay: 0.40))
+        }
+    }
+
     // MARK: - Start Button (pinned to bottom)
 
     private var startButton: some View {
@@ -282,7 +432,7 @@ struct ScriptDetailView: View {
         .buttonStyle(.plain)
         .padding(.horizontal, SSSpacing.md)
         .padding(.bottom, SSSpacing.lg)
-        .modifier(CardEntrance(appeared: appeared, reduceMotion: reduceMotion, delay: 0.40))
+        .modifier(CardEntrance(appeared: appeared, reduceMotion: reduceMotion, delay: 0.44))
     }
 
     // MARK: - Helpers

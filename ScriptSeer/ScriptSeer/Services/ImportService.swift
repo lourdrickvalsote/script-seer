@@ -126,8 +126,8 @@ enum ImportService {
 
             let compressedSize = Int(bytes[offset+18]) | (Int(bytes[offset+19]) << 8) |
                                  (Int(bytes[offset+20]) << 16) | (Int(bytes[offset+21]) << 24)
-            let uncompressedSize = Int(bytes[offset+22]) | (Int(bytes[offset+23]) << 8) |
-                                   (Int(bytes[offset+24]) << 16) | (Int(bytes[offset+25]) << 24)
+            let _ = Int(bytes[offset+22]) | (Int(bytes[offset+23]) << 8) |
+                    (Int(bytes[offset+24]) << 16) | (Int(bytes[offset+25]) << 24)
             let nameLen = Int(bytes[offset+26]) | (Int(bytes[offset+27]) << 8)
             let extraLen = Int(bytes[offset+28]) | (Int(bytes[offset+29]) << 8)
             let compressionMethod = Int(bytes[offset+8]) | (Int(bytes[offset+9]) << 8)
@@ -137,8 +137,13 @@ enum ImportService {
             guard nameEnd <= bytes.count else { break }
             let name = String(bytes: bytes[nameStart..<nameEnd], encoding: .utf8) ?? ""
 
+            let maxDecompressedSize = 10 * 1024 * 1024 // 10 MB
+            guard compressedSize >= 0, compressedSize <= maxDecompressedSize else { break }
+
             let dataStart = nameEnd + extraLen
+            guard dataStart >= nameEnd else { break } // overflow check
             let dataEnd = dataStart + compressedSize
+            guard dataEnd >= dataStart else { break } // overflow check
 
             if name == filename {
                 guard dataEnd <= bytes.count else { return nil }

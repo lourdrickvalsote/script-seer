@@ -1,6 +1,32 @@
 import SwiftUI
 import SwiftData
 
+private enum RecordingType: String, CaseIterable {
+    case video = "Video"
+    case audio = "Audio"
+
+    var icon: String {
+        switch self {
+        case .video: "video.fill"
+        case .audio: "waveform"
+        }
+    }
+
+    var emptyTitle: String {
+        switch self {
+        case .video: "Camera Recording"
+        case .audio: "Audio Recording"
+        }
+    }
+
+    var emptySubtitle: String {
+        switch self {
+        case .video: "Create a script first, then come back to record with it."
+        case .audio: "Create a script first, then come back to record audio."
+        }
+    }
+}
+
 struct RecordView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -8,6 +34,7 @@ struct RecordView: View {
     @State private var selectedScript: Script?
     @State private var newScript: Script?
     @State private var searchText = ""
+    @State private var recordingType: RecordingType = .video
 
     private var activeScripts: [Script] {
         scripts.filter { !$0.isInTrash }
@@ -29,9 +56,9 @@ struct RecordView: View {
                     VStack {
                         Spacer()
                         SSEmptyState(
-                            icon: "video.badge.waveform",
-                            title: "Camera Recording",
-                            subtitle: "Create a script first, then come back to record with it."
+                            icon: recordingType.icon,
+                            title: recordingType.emptyTitle,
+                            subtitle: recordingType.emptySubtitle
                         )
                         .padding(.horizontal, SSSpacing.md)
                         Spacer()
@@ -48,6 +75,15 @@ struct RecordView: View {
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: SSSpacing.md) {
+                            // Mode picker
+                            Picker("Recording Type", selection: $recordingType) {
+                                ForEach(RecordingType.allCases, id: \.self) { type in
+                                    Label(type.rawValue, systemImage: type.icon)
+                                        .tag(type)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+
                             SSSearchBar(text: $searchText, placeholder: "Search scripts")
 
                             if filteredScripts.isEmpty {
@@ -69,7 +105,7 @@ struct RecordView: View {
                                     } label: {
                                         ScriptSelectCard(
                                             script: script,
-                                            icon: "video.fill"
+                                            icon: recordingType.icon
                                         )
                                     }
                                     .buttonStyle(.plain)
@@ -96,7 +132,12 @@ struct RecordView: View {
                 }
             }
             .navigationDestination(item: $selectedScript) { script in
-                CameraRecordView(script: script)
+                switch recordingType {
+                case .video:
+                    CameraRecordView(script: script)
+                case .audio:
+                    AudioRecordView(script: script)
+                }
             }
             .navigationDestination(item: $newScript) { script in
                 ScriptEditorView(script: script)
