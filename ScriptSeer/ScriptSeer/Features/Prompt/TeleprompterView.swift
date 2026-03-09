@@ -5,7 +5,7 @@ struct TeleprompterView: View {
     @State var session: PromptSession
     @State private var countdownValue: Int = 3
     @State private var timer: Timer?
-    @State private var showExitConfirmation = false
+    // showExitConfirmation removed — exit is now direct
     @State private var speechEngine = SpeechFollowEngine()
     @State private var showSpeechControls = false
     @State private var showSpeechPermissionDenied = false
@@ -61,13 +61,7 @@ struct TeleprompterView: View {
         .preference(key: HideRecordButtonKey.self, value: true)
         .statusBarHidden(session.state == .prompting)
         .navigationBarBackButtonHidden(true)
-        .confirmationDialog("Exit Prompter?", isPresented: $showExitConfirmation) {
-            Button("Exit", role: .destructive) {
-                stopTimer()
-                dismiss()
-            }
-            Button("Cancel", role: .cancel) {}
-        }
+        // No exit confirmation — direct dismiss
         .alert("Speech Recognition Unavailable", isPresented: $showSpeechPermissionDenied) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -107,7 +101,8 @@ struct TeleprompterView: View {
             return .handled
         }
         .onKeyPress(.escape) {
-            showExitConfirmation = true
+            stopTimer()
+            dismiss()
             return .handled
         }
     }
@@ -147,7 +142,7 @@ struct TeleprompterView: View {
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 10, weight: .semibold))
                         }
-                        .foregroundStyle(SSColors.accent)
+                        .foregroundStyle(.white.opacity(0.9))
                     }
                 }
 
@@ -166,7 +161,7 @@ struct TeleprompterView: View {
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 10, weight: .semibold))
                         }
-                        .foregroundStyle(SSColors.accent)
+                        .foregroundStyle(.white.opacity(0.9))
                     }
                 }
 
@@ -534,7 +529,8 @@ struct TeleprompterView: View {
 
                     // Exit
                     PromptControlButton(icon: "xmark", size: 14) {
-                        showExitConfirmation = true
+                        stopTimer()
+                        dismiss()
                     }
                 }
                 .padding(.horizontal, SSSpacing.xs)
@@ -779,7 +775,7 @@ struct TeleprompterView: View {
         VStack(alignment: .leading, spacing: SSSpacing.sm) {
             Text(title.uppercased())
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(.white.opacity(0.45))
                 .tracking(1)
 
             content()
@@ -789,56 +785,109 @@ struct TeleprompterView: View {
     // MARK: - Completed
 
     private var completedOverlay: some View {
-        VStack(spacing: SSSpacing.lg) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(SSColors.accent)
+        VStack(spacing: 0) {
+            Spacer()
 
-            Text("Done!")
+            // Success icon with glow
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [.green.opacity(0.2), .clear],
+                            center: .center,
+                            startRadius: 10,
+                            endRadius: 80
+                        )
+                    )
+                    .frame(width: 160, height: 160)
+
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 72, weight: .light))
+                    .foregroundStyle(.green)
+            }
+
+            Spacer().frame(height: SSSpacing.lg)
+
+            Text("Reading Complete")
                 .font(SSTypography.title)
                 .foregroundStyle(session.theme.textColor)
 
-            // Session stats
-            HStack(spacing: SSSpacing.xl) {
-                VStack(spacing: SSSpacing.xxs) {
-                    Text(session.formattedElapsed)
-                        .font(SSTypography.headline)
-                        .foregroundStyle(session.theme.textColor)
-                    Text("Duration")
-                        .font(SSTypography.caption)
-                        .foregroundStyle(session.theme.textColor.opacity(0.6))
-                }
-                VStack(spacing: SSSpacing.xxs) {
-                    Text("\(session.script.wordCount)")
-                        .font(SSTypography.headline)
-                        .foregroundStyle(session.theme.textColor)
-                    Text("Words")
-                        .font(SSTypography.caption)
-                        .foregroundStyle(session.theme.textColor.opacity(0.6))
-                }
+            Text(session.script.title)
+                .font(SSTypography.subheadline)
+                .foregroundStyle(session.theme.textColor.opacity(0.5))
+                .padding(.top, SSSpacing.xxs)
+
+            Spacer().frame(height: SSSpacing.xxl)
+
+            // Stats card
+            HStack(spacing: 0) {
+                completedStat(value: session.formattedElapsed, label: "Duration")
+                completedDivider
+                completedStat(value: "\(session.script.wordCount)", label: "Words")
                 if session.completionWPM > 0 {
-                    VStack(spacing: SSSpacing.xxs) {
-                        Text("\(session.completionWPM)")
-                            .font(SSTypography.headline)
-                            .foregroundStyle(session.theme.textColor)
-                        Text("WPM")
-                            .font(SSTypography.caption)
-                            .foregroundStyle(session.theme.textColor.opacity(0.6))
-                    }
+                    completedDivider
+                    completedStat(value: "\(session.completionWPM)", label: "WPM")
                 }
             }
+            .padding(.vertical, SSSpacing.lg)
+            .background(
+                RoundedRectangle(cornerRadius: SSRadius.lg)
+                    .fill(.ultraThinMaterial)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: SSRadius.lg))
+            .padding(.horizontal, SSSpacing.xl)
 
-            HStack(spacing: SSSpacing.md) {
-                SSButton("Restart", icon: "arrow.counterclockwise", variant: .secondary) {
+            Spacer()
+
+            // Actions
+            VStack(spacing: SSSpacing.sm) {
+                Button {
                     session.scrollOffset = 0
                     session.state = .idle
+                } label: {
+                    HStack(spacing: SSSpacing.xs) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Read Again")
+                            .font(SSTypography.headline)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: SSRadius.md)
+                            .fill(.white.opacity(0.12))
+                    )
                 }
-                .frame(width: 150)
+                .buttonStyle(.plain)
 
-                SSButton("Exit", variant: .secondary) { dismiss() }
-                    .frame(width: 120)
+                Button { dismiss() } label: {
+                    Text("Done")
+                        .font(SSTypography.subheadline)
+                        .foregroundStyle(session.theme.textColor.opacity(0.5))
+                }
             }
+            .padding(.horizontal, SSSpacing.xl)
+            .padding(.bottom, SSSpacing.xxl)
         }
+    }
+
+    private func completedStat(value: String, label: String) -> some View {
+        VStack(spacing: SSSpacing.xxs) {
+            Text(value)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundStyle(session.theme.textColor)
+            Text(label)
+                .font(SSTypography.caption)
+                .foregroundStyle(session.theme.textColor.opacity(0.5))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var completedDivider: some View {
+        Rectangle()
+            .fill(session.theme.textColor.opacity(0.1))
+            .frame(width: 1, height: 36)
     }
 
     // MARK: - Timer
@@ -958,14 +1007,14 @@ private struct TuneSlider: View {
             HStack {
                 Text(label)
                     .font(SSTypography.caption)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.7))
                 Spacer()
                 Text("\(Int(value))\(unit)")
                     .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.35))
+                    .foregroundStyle(.white.opacity(0.5))
             }
             Slider(value: $value, in: range)
-                .tint(SSColors.accent)
+                .tint(.white)
         }
     }
 }
