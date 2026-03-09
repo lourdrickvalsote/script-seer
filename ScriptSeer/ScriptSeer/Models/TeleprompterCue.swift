@@ -15,16 +15,31 @@ enum TeleprompterCueType: String, CaseIterable {
 
     var displaySymbol: String {
         switch self {
-        case .pause: "⏸"
-        case .emphasis: "⚡"
+        case .pause: "||"
+        case .emphasis: "!"
         case .sectionBreak: "—"
-        case .breathe: "💨"
-        case .slowDown: "🐢"
-        case .smile: "😊"
-        case .punchline: "🎯"
-        case .sincerity: "❤️"
-        case .speedUp: "⚡️"
-        case .lookUp: "👁️"
+        case .breathe: "~"
+        case .slowDown: ">>"
+        case .smile: ":)"
+        case .punchline: "*"
+        case .sincerity: "+"
+        case .speedUp: "<<"
+        case .lookUp: "^"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .pause: "pause"
+        case .emphasis: "bolt.fill"
+        case .sectionBreak: "minus"
+        case .breathe: "wind"
+        case .slowDown: "tortoise.fill"
+        case .smile: "face.smiling"
+        case .punchline: "target"
+        case .sincerity: "heart.fill"
+        case .speedUp: "hare.fill"
+        case .lookUp: "eye"
         }
     }
 

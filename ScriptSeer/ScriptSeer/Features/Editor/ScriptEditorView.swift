@@ -178,8 +178,10 @@ struct ScriptEditorView: View {
                 ForEach(CueCategory.allCases, id: \.self) { category in
                     Menu {
                         ForEach(TeleprompterCueType.allCases.filter { $0.category == category }, id: \.self) { cue in
-                            Button("\(cue.displaySymbol) \(cue.displayName)") {
+                            Button {
                                 insertCue(cue)
+                            } label: {
+                                Label(cue.displayName, systemImage: cue.systemImage)
                             }
                         }
                     } label: {
