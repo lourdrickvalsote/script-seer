@@ -76,9 +76,13 @@ final class PromptSession {
 
     let script: Script
     let totalContentHeight: CGFloat
+    let contentOverride: String?
 
-    init(script: Script, totalContentHeight: CGFloat = 0) {
+    var content: String { contentOverride ?? script.content }
+
+    init(script: Script, contentOverride: String? = nil, totalContentHeight: CGFloat = 0) {
         self.script = script
+        self.contentOverride = contentOverride
         self.totalContentHeight = totalContentHeight
         self.isMirrored = script.isMirrorDefault
 
@@ -93,7 +97,7 @@ final class PromptSession {
         self.targetDurationMinutes = max(0.5, script.estimatedDuration / 60.0)
 
         // Cache section markers
-        self.sections = Self.computeSections(from: script.content)
+        self.sections = Self.computeSections(from: contentOverride ?? script.content)
     }
 
     private static func computeSections(from content: String) -> [(title: String, progress: Double)] {
@@ -182,7 +186,8 @@ final class PromptSession {
 
     var completionWPM: Int {
         guard elapsedSeconds > 10 else { return 0 }
-        return Int(Double(script.wordCount) / (elapsedSeconds / 60.0))
+        let wordCount = content.split(omittingEmptySubsequences: true, whereSeparator: { $0.isWhitespace }).count
+        return Int(Double(wordCount) / (elapsedSeconds / 60.0))
     }
 
     var formattedElapsed: String {

@@ -10,7 +10,7 @@ struct HomeView: View {
     @State private var newScript: Script?
 
     private var recentScripts: [Script] {
-        Array(scripts.prefix(5))
+        Array(scripts.filter { !$0.isInTrash }.prefix(5))
     }
 
     var body: some View {
@@ -124,6 +124,9 @@ struct HomeView: View {
             .navigationDestination(item: $newScript) { script in
                 ScriptEditorView(script: script)
             }
+            .onAppear {
+                cleanupEmptyScripts()
+            }
         }
     }
 
@@ -132,6 +135,15 @@ struct HomeView: View {
         modelContext.insert(script)
         newScript = script
         SSHaptics.light()
+    }
+
+    private func cleanupEmptyScripts() {
+        for script in scripts where !script.isInTrash {
+            let isEmpty = script.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if isEmpty && script.title == "Untitled Script" {
+                modelContext.delete(script)
+            }
+        }
     }
 }
 

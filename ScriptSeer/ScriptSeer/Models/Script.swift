@@ -11,6 +11,7 @@ final class Script {
     var estimatedDuration: TimeInterval
     var tags: [String]
     var isMirrorDefault: Bool
+    var deletedAt: Date?
 
     @Relationship(deleteRule: .cascade, inverse: \ScriptVariant.parentScript)
     var variants: [ScriptVariant]
@@ -34,8 +35,28 @@ final class Script {
         self.estimatedDuration = Script.estimateDuration(for: content)
         self.tags = tags
         self.isMirrorDefault = isMirrorDefault
+        self.deletedAt = nil
         self.variants = []
         self.revisions = []
+    }
+
+    func softDelete() {
+        deletedAt = Date()
+        folder = nil
+    }
+
+    func restore() {
+        deletedAt = nil
+    }
+
+    var isInTrash: Bool {
+        deletedAt != nil
+    }
+
+    var daysUntilPermanentDeletion: Int? {
+        guard let deletedAt else { return nil }
+        let daysSinceDeletion = Calendar.current.dateComponents([.day], from: deletedAt, to: Date()).day ?? 0
+        return max(0, 30 - daysSinceDeletion)
     }
 
     func duplicate() -> Script {

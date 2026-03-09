@@ -9,10 +9,14 @@ struct RecordView: View {
     @State private var newScript: Script?
     @State private var searchText = ""
 
+    private var activeScripts: [Script] {
+        scripts.filter { !$0.isInTrash }
+    }
+
     private var filteredScripts: [Script] {
-        if searchText.isEmpty { return Array(scripts) }
+        if searchText.isEmpty { return activeScripts }
         let query = searchText.lowercased()
-        return scripts.filter {
+        return activeScripts.filter {
             $0.title.lowercased().contains(query) ||
             $0.content.lowercased().contains(query)
         }
@@ -21,7 +25,7 @@ struct RecordView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if scripts.isEmpty {
+                if activeScripts.isEmpty {
                     VStack {
                         Spacer()
                         SSEmptyState(

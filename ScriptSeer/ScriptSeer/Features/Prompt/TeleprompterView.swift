@@ -4,7 +4,8 @@ struct TeleprompterView: View {
     @Environment(\.dismiss) private var dismiss
     @State var session: PromptSession
     @State private var countdownValue: Int = 3
-    @State private var timer: Timer?
+    @State private var countdownTimer: Timer?
+    @State private var scrollTimer: Timer?
     // showExitConfirmation removed — exit is now direct
     @State private var speechEngine = SpeechFollowEngine()
     @State private var showSpeechControls = false
@@ -15,8 +16,8 @@ struct TeleprompterView: View {
     @State private var externalDisplay = ExternalDisplayManager()
     @State private var gameController = GameControllerManager()
 
-    init(script: Script) {
-        self._session = State(initialValue: PromptSession(script: script))
+    init(script: Script, contentOverride: String? = nil) {
+        self._session = State(initialValue: PromptSession(script: script, contentOverride: contentOverride))
     }
 
     var body: some View {
@@ -72,13 +73,20 @@ struct TeleprompterView: View {
         } message: {
             Text("ScriptSeer needs speech recognition permission for hands-free script following. Please enable it in Settings.")
         }
-        .onDisappear { stopTimer() }
+        .onDisappear {
+            stopAllTimers()
+            externalDisplay.dismissExternalDisplay()
+        }
         .onAppear {
             gameController.onPlayPause = { session.togglePlayPause() }
             gameController.onJumpBack = { session.jumpBack() }
             gameController.onJumpForward = { session.jumpForward() }
             gameController.onSpeedUp = { session.scrollSpeed = min(session.scrollSpeed + 5, 120) }
             gameController.onSpeedDown = { session.scrollSpeed = max(session.scrollSpeed - 5, 10) }
+
+            if externalDisplay.isExternalDisplayConnected && externalDisplay.isExternalOutputEnabled {
+                externalDisplay.showTeleprompter(session: session)
+            }
         }
         .onKeyPress(.space) {
             session.togglePlayPause()
@@ -101,9 +109,41 @@ struct TeleprompterView: View {
             return .handled
         }
         .onKeyPress(.escape) {
-            stopTimer()
+            stopAllTimers()
             dismiss()
             return .handled
+        }
+        // Presentation clicker / foot pedal keys
+        .onKeyPress(.pageDown) {
+            session.jumpForward()
+            return .handled
+        }
+        .onKeyPress(.pageUp) {
+            session.jumpBack()
+            return .handled
+        }
+        .onKeyPress(.return) {
+            session.togglePlayPause()
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: ".")) { _ in
+            session.jumpForward()
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: ",")) { _ in
+            session.jumpBack()
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "bB")) { _ in
+            session.togglePlayPause()
+            return .handled
+        }
+        .onChange(of: session.state) { _, newState in
+            if newState == .prompting && externalDisplay.isExternalOutputEnabled && externalDisplay.isExternalDisplayConnected {
+                externalDisplay.showTeleprompter(session: session)
+            } else if newState == .completed || newState == .idle {
+                externalDisplay.dismissExternalDisplay()
+            }
         }
     }
 
@@ -282,7 +322,7 @@ struct TeleprompterView: View {
                 startScrollTimer()
             }
             .onChange(of: session.measuredContentHeight) { _, height in
-                if height > 0 && session.state == .prompting && timer == nil {
+                if height > 0 && session.state == .prompting && scrollTimer == nil {
                     startScrollTimer()
                 }
             }
@@ -305,7 +345,7 @@ struct TeleprompterView: View {
             switch session.displayMode {
             case .paragraph:
                 if session.hookModeEnabled {
-                    let paragraphs = session.script.content
+                    let paragraphs = session.content
                         .components(separatedBy: .newlines)
                         .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
                     ForEach(Array(paragraphs.enumerated()), id: \.offset) { index, para in
@@ -316,13 +356,13 @@ struct TeleprompterView: View {
                             .opacity(isHook ? 1.0 : 0.85)
                     }
                 } else {
-                    richPromptText(session.script.content)
+                    richPromptText(session.content)
                         .lineSpacing(session.lineSpacing)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
             case .oneLine, .twoLine, .chunk:
-                let lines = CueParser.stripCues(session.script.content)
+                let lines = CueParser.stripCues(session.content)
                     .components(separatedBy: .newlines)
                     .flatMap { paragraph in
                         paragraph.isEmpty ? [""] : splitIntoLines(paragraph, mode: session.displayMode)
@@ -404,7 +444,7 @@ struct TeleprompterView: View {
 
     private var focusWindowContent: some View {
         let allLines = splitScriptIntoChunks(
-            session.script.content,
+            session.content,
             wordsPerChunk: focusConfig.preset.wordsPerChunk
         )
 
@@ -433,17 +473,17 @@ struct TeleprompterView: View {
     }
 
     private func startFocusTimer() {
-        stopTimer()
+        stopScrollTimer()
         let totalLines = splitScriptIntoChunks(
-            session.script.content,
+            session.content,
             wordsPerChunk: focusConfig.preset.wordsPerChunk
         ).count
         guard totalLines > 0 else { return }
 
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { _ in
+        scrollTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { _ in
             guard session.state == .prompting else { return }
             if self.currentFocusLine >= totalLines - 1 {
-                self.stopTimer()
+                self.stopScrollTimer()
                 SSHaptics.success()
                 session.complete()
                 return
@@ -471,7 +511,7 @@ struct TeleprompterView: View {
                 // Main control bar
                 HStack(spacing: 0) {
                     // Jump back
-                    PromptControlButton(icon: "backward.fill", size: 16) {
+                    PromptControlButton(icon: "backward.fill", label: "Jump Back", size: 16) {
                         session.jumpBack()
                         SSHaptics.light()
                     }
@@ -479,6 +519,7 @@ struct TeleprompterView: View {
                     // Play / Pause — larger, center
                     PromptControlButton(
                         icon: session.state == .prompting ? "pause.fill" : "play.fill",
+                        label: session.state == .prompting ? "Pause" : "Play",
                         size: 22,
                         isAccented: true
                     ) {
@@ -487,7 +528,7 @@ struct TeleprompterView: View {
                     }
 
                     // Jump forward
-                    PromptControlButton(icon: "forward.fill", size: 16) {
+                    PromptControlButton(icon: "forward.fill", label: "Jump Forward", size: 16) {
                         session.jumpForward()
                         SSHaptics.light()
                     }
@@ -498,6 +539,7 @@ struct TeleprompterView: View {
                     // Scrub toggle
                     PromptControlButton(
                         icon: "text.line.first.and.arrowtriangle.forward",
+                        label: "Scrub",
                         size: 16,
                         isActive: showScrubBar
                     ) {
@@ -510,6 +552,7 @@ struct TeleprompterView: View {
                     // Speech follow
                     PromptControlButton(
                         icon: "waveform",
+                        label: "Speech Follow",
                         size: 16,
                         isActive: speechEngine.state != .idle && speechEngine.state != .stopped
                     ) {
@@ -517,7 +560,7 @@ struct TeleprompterView: View {
                     }
 
                     // Tune
-                    PromptControlButton(icon: "slider.horizontal.3", size: 16) {
+                    PromptControlButton(icon: "slider.horizontal.3", label: "Tune Controls", size: 16) {
                         withAnimation(SSAnimation.standard) {
                             session.showTuneControls.toggle()
                         }
@@ -528,8 +571,8 @@ struct TeleprompterView: View {
                     controlDivider
 
                     // Exit
-                    PromptControlButton(icon: "xmark", size: 14) {
-                        stopTimer()
+                    PromptControlButton(icon: "xmark", label: "Exit", size: 14) {
+                        stopAllTimers()
                         dismiss()
                     }
                 }
@@ -722,6 +765,71 @@ struct TeleprompterView: View {
                                 }
                             }
 
+                            // Remote section
+                            tuneSection("Remote") {
+                                if gameController.isControllerConnected {
+                                    HStack(spacing: SSSpacing.xs) {
+                                        Image(systemName: "gamecontroller.fill")
+                                            .foregroundStyle(SSColors.accent)
+                                        Text(gameController.controllerName)
+                                            .font(SSTypography.subheadline)
+                                            .foregroundStyle(.white.opacity(0.85))
+                                    }
+                                }
+
+                                VStack(alignment: .leading, spacing: SSSpacing.xxs) {
+                                    Text("Key Mapping")
+                                        .font(SSTypography.caption)
+                                        .foregroundStyle(.white.opacity(0.5))
+
+                                    keyMappingRow("Space / Return / B", "Play / Pause")
+                                    keyMappingRow("Right Arrow / Page Down / .", "Jump Forward")
+                                    keyMappingRow("Left Arrow / Page Up / ,", "Jump Back")
+                                    keyMappingRow("Up Arrow", "Speed Up")
+                                    keyMappingRow("Down Arrow", "Speed Down")
+                                    keyMappingRow("Escape", "Exit")
+                                }
+                            }
+
+                            // External Display section
+                            tuneSection("External Display") {
+                                if externalDisplay.isExternalDisplayConnected {
+                                    Toggle("Output to External Display", isOn: Binding(
+                                        get: { externalDisplay.isExternalOutputEnabled },
+                                        set: { enabled in
+                                            externalDisplay.isExternalOutputEnabled = enabled
+                                            if enabled {
+                                                externalDisplay.showTeleprompter(session: session)
+                                            } else {
+                                                externalDisplay.dismissExternalDisplay()
+                                            }
+                                        }
+                                    ))
+                                    .font(SSTypography.subheadline)
+                                    .foregroundStyle(.white.opacity(0.85))
+                                    .tint(SSColors.accent)
+
+                                    if externalDisplay.isExternalOutputEnabled {
+                                        Toggle("Rig Mirror (reversed)", isOn: $externalDisplay.independentMirror)
+                                            .font(SSTypography.subheadline)
+                                            .foregroundStyle(.white.opacity(0.85))
+                                            .tint(SSColors.accent)
+
+                                        Text("Reverses text on external display for beam splitter teleprompter rigs")
+                                            .font(SSTypography.caption)
+                                            .foregroundStyle(.white.opacity(0.4))
+                                    }
+                                } else {
+                                    HStack(spacing: SSSpacing.xs) {
+                                        Image(systemName: "tv")
+                                            .foregroundStyle(.white.opacity(0.3))
+                                        Text("No External Display")
+                                            .font(SSTypography.subheadline)
+                                            .foregroundStyle(.white.opacity(0.3))
+                                    }
+                                }
+                            }
+
                             // Advanced section
                             tuneSection("Advanced") {
                                 Toggle("Hook Mode", isOn: $session.hookModeEnabled)
@@ -734,33 +842,13 @@ struct TeleprompterView: View {
                                         .font(SSTypography.caption)
                                         .foregroundStyle(.white.opacity(0.4))
                                 }
-
-                                if externalDisplay.isExternalDisplayConnected {
-                                    HStack(spacing: SSSpacing.xs) {
-                                        Image(systemName: "tv.fill")
-                                            .foregroundStyle(SSColors.accent)
-                                        Text("External Display Connected")
-                                            .font(SSTypography.subheadline)
-                                            .foregroundStyle(.white.opacity(0.85))
-                                    }
-                                }
-
-                                if gameController.isControllerConnected {
-                                    HStack(spacing: SSSpacing.xs) {
-                                        Image(systemName: "gamecontroller.fill")
-                                            .foregroundStyle(SSColors.accent)
-                                        Text(gameController.controllerName)
-                                            .font(SSTypography.subheadline)
-                                            .foregroundStyle(.white.opacity(0.85))
-                                    }
-                                }
                             }
                         }
                         .padding(.horizontal, SSSpacing.lg)
                         .padding(.bottom, SSSpacing.xxl)
                     }
                 }
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
+                .containerRelativeFrame(.vertical) { height, _ in height * 0.7 }
                 .background(.ultraThinMaterial)
                 .background(.black.opacity(0.6))
                 .clipShape(RoundedRectangle(cornerRadius: SSRadius.xl))
@@ -769,6 +857,18 @@ struct TeleprompterView: View {
             }
         }
         .transition(.opacity)
+    }
+
+    private func keyMappingRow(_ keys: String, _ action: String) -> some View {
+        HStack {
+            Text(keys)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.6))
+            Spacer()
+            Text(action)
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.4))
+        }
     }
 
     private func tuneSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -897,13 +997,13 @@ struct TeleprompterView: View {
         session.state = .countdown
         SSHaptics.medium()
 
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             if countdownValue > 1 {
                 countdownValue -= 1
                 SSHaptics.light()
             } else {
-                timer?.invalidate()
-                timer = nil
+                countdownTimer?.invalidate()
+                countdownTimer = nil
                 session.scrollOffset = 0
                 session.play()
             }
@@ -911,25 +1011,31 @@ struct TeleprompterView: View {
     }
 
     private func startScrollTimer() {
-        stopTimer()
+        stopScrollTimer()
         guard session.measuredContentHeight > 0 else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
+        scrollTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
             guard session.state == .prompting else { return }
             let speed = speechEngine.isConfidenceScrollEnabled ? speechEngine.adaptiveSpeed : session.effectiveScrollSpeed
             session.scrollOffset += speed / 60.0
 
             // Auto-complete when scrolled past content
             if session.measuredContentHeight > 0, session.scrollOffset >= session.measuredContentHeight {
-                self.stopTimer()
+                self.stopScrollTimer()
                 SSHaptics.success()
                 session.complete()
             }
         }
     }
 
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+    private func stopScrollTimer() {
+        scrollTimer?.invalidate()
+        scrollTimer = nil
+    }
+
+    private func stopAllTimers() {
+        countdownTimer?.invalidate()
+        countdownTimer = nil
+        stopScrollTimer()
     }
 
     // MARK: - Speech Follow
@@ -939,7 +1045,7 @@ struct TeleprompterView: View {
             // Apply user's preferred speech follow mode
             let savedMode = UserDefaults.standard.string(forKey: "speechFollowMode") ?? "Smart"
             speechEngine.mode = SpeechFollowMode(rawValue: savedMode) ?? .smart
-            speechEngine.prepare(scriptContent: session.script.content)
+            speechEngine.prepare(scriptContent: session.content)
             Task {
                 let authorized = await speechEngine.requestAuthorization()
                 if authorized {
@@ -962,6 +1068,7 @@ struct TeleprompterView: View {
 
 private struct PromptControlButton: View {
     let icon: String
+    var label: String? = nil
     var size: CGFloat = 18
     var isAccented: Bool = false
     var isActive: Bool = false
@@ -975,7 +1082,7 @@ private struct PromptControlButton: View {
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
-        .accessibilityLabel(icon)
+        .accessibilityLabel(label ?? icon)
     }
 }
 
@@ -1002,6 +1109,16 @@ private struct TuneSlider: View {
         self.unit = unit
     }
 
+    private var formattedValue: String {
+        if value < 1 {
+            return String(format: "%.2f", value)
+        } else if value.truncatingRemainder(dividingBy: 1) == 0 {
+            return "\(Int(value))"
+        } else {
+            return String(format: "%.1f", value)
+        }
+    }
+
     var body: some View {
         VStack(spacing: SSSpacing.xxs) {
             HStack {
@@ -1009,7 +1126,7 @@ private struct TuneSlider: View {
                     .font(SSTypography.caption)
                     .foregroundStyle(.white.opacity(0.7))
                 Spacer()
-                Text("\(Int(value))\(unit)")
+                Text("\(formattedValue)\(unit)")
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(.white.opacity(0.5))
             }

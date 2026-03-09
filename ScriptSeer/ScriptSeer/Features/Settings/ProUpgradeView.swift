@@ -26,6 +26,17 @@ struct ProUpgradeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(SSColors.textSecondary)
+                }
+            }
+        }
         .preference(key: HideRecordButtonKey.self, value: true)
         .alert("Purchase Error", isPresented: $showError) {
             Button("OK") {}
@@ -38,27 +49,6 @@ struct ProUpgradeView: View {
 
     private var paywallView: some View {
         VStack(spacing: 0) {
-            // Close button row
-            HStack {
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(SSColors.textSecondary)
-                        .frame(width: 30, height: 30)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
-                        )
-                }
-            }
-            .padding(.horizontal, SSSpacing.md)
-            .padding(.top, SSSpacing.xs)
-
             Spacer(minLength: SSSpacing.xs)
 
             // Hero
@@ -277,6 +267,7 @@ struct ProUpgradeView: View {
                 period: "/yr",
                 badge: "Save 33%",
                 subtitle: "7-day free trial",
+                monthlyEquivalent: annualMonthlyEquivalent,
                 isSelected: selectedPlan == .annual
             ) {
                 withAnimation(SSAnimation.spring) { selectedPlan = .annual }
@@ -369,27 +360,6 @@ struct ProUpgradeView: View {
 
     private var activeProView: some View {
         VStack(spacing: SSSpacing.xl) {
-            // Close button row
-            HStack {
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(SSColors.textSecondary)
-                        .frame(width: 30, height: 30)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
-                        )
-                }
-            }
-            .padding(.horizontal, SSSpacing.md)
-            .padding(.top, SSSpacing.xs)
-
             Spacer()
 
             VStack(spacing: SSSpacing.md) {
@@ -426,6 +396,14 @@ struct ProUpgradeView: View {
         .padding(.horizontal, SSSpacing.md)
     }
 
+    private var annualMonthlyEquivalent: String {
+        if let product = store.annualProduct {
+            let monthly = product.price / 12
+            return "$\(String(format: "%.2f", NSDecimalNumber(decimal: monthly).doubleValue))/mo"
+        }
+        return "$3.33/mo"
+    }
+
     // MARK: - Purchase
 
     private func purchaseSelected() async {
@@ -456,6 +434,7 @@ private struct PlanCard: View {
     let period: String
     let badge: String?
     let subtitle: String?
+    var monthlyEquivalent: String? = nil
     let isSelected: Bool
     let action: () -> Void
 
@@ -485,6 +464,12 @@ private struct PlanCard: View {
                     Text(period)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(SSColors.textTertiary)
+                }
+
+                if let monthlyEquivalent {
+                    Text(monthlyEquivalent)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(SSColors.textSecondary)
                 }
 
                 if let subtitle {

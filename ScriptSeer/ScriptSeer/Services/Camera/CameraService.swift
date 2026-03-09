@@ -38,6 +38,11 @@ enum RecordingState: Equatable {
     case failed(String)
 }
 
+enum RecordingMode: String, CaseIterable {
+    case video = "Video"
+    case audioOnly = "Audio Only"
+}
+
 @Observable
 final class CameraService: NSObject {
     let captureSession = AVCaptureSession()
@@ -47,11 +52,17 @@ final class CameraService: NSObject {
     var resolution: VideoResolution = .hd1080
     var takeCount: Int = 0
     var lastSavedURL: URL?
+    var recordingMode: RecordingMode = .video
+    private(set) var isSwitchingCamera = false
+    var audioLevel: Float = 0.0
 
     private var videoOutput: AVCaptureMovieFileOutput?
     private var currentDevice: AVCaptureDevice?
     private var outputURL: URL?
     private var onRecordingFinished: ((URL?) -> Void)?
+    private var audioRecorder: AVAudioRecorder?
+    private var audioOutputURL: URL?
+    private var audioLevelTimer: Timer?
 
     func configure() {
         guard captureSession.inputs.isEmpty else { return }
@@ -105,9 +116,30 @@ final class CameraService: NSObject {
         }
     }
 
+    func teardownSession() {
+        stopSession()
+        captureSession.beginConfiguration()
+        for input in captureSession.inputs {
+            captureSession.removeInput(input)
+        }
+        for output in captureSession.outputs {
+            captureSession.removeOutput(output)
+        }
+        captureSession.commitConfiguration()
+        videoOutput = nil
+        currentDevice = nil
+    }
+
     func switchCamera() {
-        // Don't switch camera during active recording
-        if case .recording = recordingState { return }
+        // Block during transient states only
+        switch recordingState {
+        case .preparing, .countdown, .finishing:
+            return
+        default:
+            break
+        }
+        guard !isSwitchingCamera else { return }
+        isSwitchingCamera = true
 
         let newPosition: CameraPosition = currentPosition == .front ? .back : .front
 
@@ -134,6 +166,7 @@ final class CameraService: NSObject {
                     }
                 }
                 self.captureSession.commitConfiguration()
+                DispatchQueue.main.async { self.isSwitchingCamera = false }
                 return
             }
             self.captureSession.addInput(input)
@@ -150,11 +183,60 @@ final class CameraService: NSObject {
 
             DispatchQueue.main.async {
                 self.currentPosition = newPosition
+                self.isSwitchingCamera = false
             }
         }
     }
 
     func startRecording() {
+        switch recordingMode {
+        case .video:
+            startVideoRecording()
+        case .audioOnly:
+            startAudioRecording()
+        }
+    }
+
+    func pauseRecording() {
+        switch recordingMode {
+        case .video:
+            guard let output = videoOutput, output.isRecording else { return }
+            output.pauseRecording()
+            recordingState = .paused
+        case .audioOnly:
+            audioRecorder?.pause()
+            stopAudioLevelTimer()
+            recordingState = .paused
+        }
+    }
+
+    func resumeRecording() {
+        switch recordingMode {
+        case .video:
+            guard let output = videoOutput, output.isRecordingPaused else { return }
+            output.resumeRecording()
+            recordingState = .recording
+        case .audioOnly:
+            audioRecorder?.record()
+            startAudioLevelTimer()
+            recordingState = .recording
+        }
+    }
+
+    func stopRecording() {
+        switch recordingMode {
+        case .video:
+            guard let output = videoOutput, output.isRecording else { return }
+            recordingState = .finishing
+            output.stopRecording()
+        case .audioOnly:
+            stopAudioRecording()
+        }
+    }
+
+    // MARK: - Video Recording
+
+    private func startVideoRecording() {
         guard let output = videoOutput, !output.isRecording else { return }
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -164,22 +246,67 @@ final class CameraService: NSObject {
         output.startRecording(to: url, recordingDelegate: self)
     }
 
-    func pauseRecording() {
-        guard let output = videoOutput, output.isRecording else { return }
-        output.pauseRecording()
-        recordingState = .paused
+    // MARK: - Audio-Only Recording
+
+    func configureAudioOnly() {
+        let audioSession = AVAudioSession.sharedInstance()
+        try? audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
+        try? audioSession.setActive(true, options: .notifyOthersOnDeactivation)
     }
 
-    func resumeRecording() {
-        guard let output = videoOutput, output.isRecordingPaused else { return }
-        output.resumeRecording()
+    private func startAudioRecording() {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("m4a")
+        audioOutputURL = url
+
+        let settings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVSampleRateKey: 44100.0,
+            AVNumberOfChannelsKey: 2,
+            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+        ]
+
+        guard let recorder = try? AVAudioRecorder(url: url, settings: settings) else {
+            recordingState = .failed("Could not start audio recording.")
+            return
+        }
+        recorder.isMeteringEnabled = true
+        recorder.record()
+        audioRecorder = recorder
         recordingState = .recording
+        startAudioLevelTimer()
     }
 
-    func stopRecording() {
-        guard let output = videoOutput, output.isRecording else { return }
-        recordingState = .finishing
-        output.stopRecording()
+    private func stopAudioRecording() {
+        audioRecorder?.stop()
+        stopAudioLevelTimer()
+        audioRecorder = nil
+
+        if let url = audioOutputURL {
+            takeCount += 1
+            lastSavedURL = url
+            recordingState = .saved
+        } else {
+            recordingState = .failed("Audio recording failed.")
+        }
+    }
+
+    private func startAudioLevelTimer() {
+        audioLevelTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            guard let self, let recorder = self.audioRecorder, recorder.isRecording else { return }
+            recorder.updateMeters()
+            let db = recorder.averagePower(forChannel: 0)
+            // Normalize dB (-160...0) to 0...1
+            let normalized = max(0, min(1, (db + 50) / 50))
+            self.audioLevel = normalized
+        }
+    }
+
+    private func stopAudioLevelTimer() {
+        audioLevelTimer?.invalidate()
+        audioLevelTimer = nil
+        audioLevel = 0
     }
 
     func setResolution(_ newResolution: VideoResolution) {
@@ -193,6 +320,21 @@ final class CameraService: NSObject {
             captureSession.sessionPreset = newResolution.sessionPreset
         }
         captureSession.commitConfiguration()
+    }
+
+    func updateVideoOrientation(_ orientation: UIDeviceOrientation) {
+        guard let output = videoOutput,
+              let connection = output.connection(with: .video) else { return }
+        let angle: CGFloat
+        switch orientation {
+        case .landscapeLeft: angle = 0    // DI points left → natural landscape
+        case .landscapeRight: angle = 180
+        case .portrait: angle = 90
+        default: return
+        }
+        if connection.isVideoRotationAngleSupported(angle) {
+            connection.videoRotationAngle = angle
+        }
     }
 
     func resetForNewTake() {

@@ -15,7 +15,10 @@ struct ScriptEditorView: View {
     @State private var showRenameAlert = false
     @State private var renameText = ""
     @FocusState private var editorFocused: Bool
+    @State private var editorSelection: TextSelection?
+    @State private var lastKnownCursorPosition: String.Index?
     @State private var initialWordCount: Int = 0
+    @State private var isNewEmptyScript = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,7 +30,7 @@ struct ScriptEditorView: View {
                 TextEditor(text: Binding(
                     get: { script.content },
                     set: { script.updateContent($0) }
-                ))
+                ), selection: $editorSelection)
                 .font(SSTypography.body)
                 .foregroundStyle(SSColors.textPrimary)
                 .scrollContentBackground(.hidden)
@@ -35,6 +38,16 @@ struct ScriptEditorView: View {
                 .frame(minHeight: 400)
                 .padding(.horizontal, SSSpacing.md)
                 .padding(.top, SSSpacing.sm)
+                .onChange(of: editorSelection) {
+                    if let selection = editorSelection {
+                        switch selection.indices {
+                        case .selection(let range):
+                            lastKnownCursorPosition = range.lowerBound
+                        case .multiSelection:
+                            break
+                        }
+                    }
+                }
             }
             .background(SSColors.background)
 
@@ -136,8 +149,10 @@ struct ScriptEditorView: View {
         .onAppear {
             editorFocused = true
             initialWordCount = script.wordCount
+            isNewEmptyScript = script.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         .onDisappear {
+            deleteIfStillEmpty()
             autoSaveRevisionIfNeeded()
         }
     }
@@ -162,11 +177,11 @@ struct ScriptEditorView: View {
             HStack(spacing: SSSpacing.xs) {
                 // Speaker & Section markers
                 FormatButton(icon: "person.fill", label: "Speaker") {
-                    script.updateContent(script.content + "\n[SPEAKER: Name] ")
+                    insertAtCursor("\n[SPEAKER: Name] ")
                     SSHaptics.light()
                 }
                 FormatButton(icon: "text.line.first.and.arrowtriangle.forward", label: "Section") {
-                    script.updateContent(script.content + "\n[SECTION: Title]\n")
+                    insertAtCursor("\n[SECTION: Title]\n")
                     SSHaptics.light()
                 }
 
@@ -207,9 +222,38 @@ struct ScriptEditorView: View {
         )
     }
 
+    private func insertAtCursor(_ text: String) {
+        var content = script.content
+        if let selection = editorSelection {
+            switch selection.indices {
+            case .selection(let range):
+                content.replaceSubrange(range, with: text)
+                script.updateContent(content)
+                return
+            case .multiSelection:
+                break
+            }
+        }
+        if let pos = lastKnownCursorPosition, pos <= content.endIndex {
+            content.insert(contentsOf: text, at: pos)
+            script.updateContent(content)
+        } else {
+            script.updateContent(content + text)
+        }
+    }
+
     private func insertCue(_ cue: TeleprompterCueType) {
-        script.updateContent(script.content + " " + cue.rawValue + " ")
+        insertAtCursor(" " + cue.rawValue + " ")
         SSHaptics.light()
+    }
+
+    private func deleteIfStillEmpty() {
+        guard isNewEmptyScript, !script.isDeleted else { return }
+        let trimmed = script.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasDefaultTitle = script.title == "Untitled Script"
+        if trimmed.isEmpty && hasDefaultTitle {
+            modelContext.delete(script)
+        }
     }
 
     private func autoSaveRevisionIfNeeded() {

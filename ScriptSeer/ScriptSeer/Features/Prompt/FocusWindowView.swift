@@ -77,7 +77,7 @@ struct GlancePresetPicker: View {
         VStack(spacing: SSSpacing.sm) {
             Text("Reading Preset")
                 .font(SSTypography.headline)
-                .foregroundStyle(SSColors.textPrimary)
+                .foregroundStyle(.white)
 
             ForEach(GlancePreset.allCases, id: \.self) { preset in
                 Button(action: {
@@ -89,10 +89,10 @@ struct GlancePresetPicker: View {
                         VStack(alignment: .leading, spacing: SSSpacing.xxs) {
                             Text(preset.rawValue)
                                 .font(SSTypography.headline)
-                                .foregroundStyle(selectedPreset == preset ? SSColors.accent : SSColors.textPrimary)
+                                .foregroundStyle(selectedPreset == preset ? SSColors.accent : .white)
                             Text(preset.description)
                                 .font(SSTypography.caption)
-                                .foregroundStyle(SSColors.textSecondary)
+                                .foregroundStyle(.white.opacity(0.6))
                         }
                         Spacer()
                         if selectedPreset == preset {

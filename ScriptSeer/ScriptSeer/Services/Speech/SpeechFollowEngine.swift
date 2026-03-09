@@ -23,6 +23,7 @@ enum SpeechFollowState {
     case stopped
 }
 
+@MainActor
 @Observable
 final class SpeechFollowEngine {
     var state: SpeechFollowState = .idle
@@ -43,9 +44,12 @@ final class SpeechFollowEngine {
     private var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
     private var scriptWords: [String] = []
-    private let confidenceThreshold: Float = 0.4
-    private let maxJumpDistance = 5 // max words to skip on weak confidence
+    private let confidenceThreshold: Float = 0.15
+    private let maxJumpDistance = 25 // max words to search ahead
     private var tapInstalled = false
+    private var cachedFillerWords: Set<String> = []
+    private var useExistingAudioSession = false
+    private var lastProcessedSpokenCount = 0 // track already-processed words
 
     // Pace tracking
     private var wordTimestamps: [(index: Int, time: Date)] = []
@@ -60,6 +64,8 @@ final class SpeechFollowEngine {
             .filter { !$0.isEmpty }
         currentWordIndex = 0
         confidence = 1.0
+        lastProcessedSpokenCount = 0
+        cachedFillerWords = Self.fillerWordsForCurrentLocale()
         debugLog(message: "Prepared with \(scriptWords.count) words")
     }
 
@@ -75,12 +81,14 @@ final class SpeechFollowEngine {
         }
     }
 
-    func start() {
+    func start(useExistingAudioSession: Bool = false) {
         guard let recognizer = speechRecognizer, recognizer.isAvailable else {
             state = .manualAssist
             debugLog(message: "Speech recognizer not available")
             return
         }
+
+        self.useExistingAudioSession = useExistingAudioSession
 
         do {
             try startRecognition()
@@ -104,8 +112,10 @@ final class SpeechFollowEngine {
         if audioEngine.isRunning {
             audioEngine.stop()
         }
-        // Deactivate audio session so other audio can resume
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        // Only deactivate audio session if we own it
+        if !useExistingAudioSession {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
         state = .stopped
         debugLog(message: "Stopped")
     }
@@ -114,9 +124,12 @@ final class SpeechFollowEngine {
         recognitionTask?.cancel()
         recognitionTask = nil
 
-        let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
-        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        // Only configure audio session if we're not sharing one with camera
+        if !useExistingAudioSession {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        }
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
@@ -142,7 +155,9 @@ final class SpeechFollowEngine {
             // Clean up tap and audio session before rethrowing
             inputNode.removeTap(onBus: 0)
             tapInstalled = false
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            if !useExistingAudioSession {
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            }
             throw error
         }
 
@@ -183,13 +198,13 @@ final class SpeechFollowEngine {
 
         guard !spokenWords.isEmpty else { return }
 
-        // Update confidence from segments
+        // Update confidence from segments (for UI display)
         if let lastSegment = result.bestTranscription.segments.last {
             confidence = Float(lastSegment.confidence)
         }
 
-        // Check confidence threshold
-        if confidence < confidenceThreshold && confidence > 0 {
+        // Only skip if confidence is very low AND non-zero (0 = partial result, always process)
+        if confidence > 0 && confidence < confidenceThreshold {
             if state != .lowConfidence {
                 state = .lowConfidence
                 debugLog(message: "Low confidence: \(String(format: "%.2f", confidence))")
@@ -199,20 +214,35 @@ final class SpeechFollowEngine {
 
         state = .following
 
+        // Only process newly spoken words since last callback
+        let newWords: [String]
+        if spokenWords.count > lastProcessedSpokenCount {
+            newWords = Array(spokenWords.suffix(from: lastProcessedSpokenCount))
+            lastProcessedSpokenCount = spokenWords.count
+        } else {
+            // Transcription was revised — reprocess recent words
+            let reprocessCount = min(spokenWords.count, 8)
+            newWords = Array(spokenWords.suffix(reprocessCount))
+            lastProcessedSpokenCount = spokenWords.count
+        }
+
+        guard !newWords.isEmpty else { return }
+
         switch mode {
         case .strict:
-            advanceStrict(spokenWords: spokenWords)
+            advanceStrict(spokenWords: newWords)
         case .smart:
-            advanceSmart(spokenWords: spokenWords)
+            advanceSmart(spokenWords: newWords)
         }
     }
 
     private func advanceStrict(spokenWords: [String]) {
-        // Word-by-word matching
-        for spoken in spokenWords.suffix(3) {
-            let searchEnd = min(currentWordIndex + maxJumpDistance, scriptWords.count)
+        let searchEnd = min(currentWordIndex + maxJumpDistance, scriptWords.count)
+        // Try to match every new spoken word against the script
+        for spoken in spokenWords {
+            guard !spoken.isEmpty else { continue }
             for i in currentWordIndex..<searchEnd {
-                if scriptWords[i] == spoken {
+                if scriptWords[i] == spoken || levenshteinClose(scriptWords[i], spoken) {
                     let newIndex = i + 1
                     if newIndex > currentWordIndex {
                         currentWordIndex = newIndex
@@ -226,44 +256,68 @@ final class SpeechFollowEngine {
     }
 
     private func advanceSmart(spokenWords: [String]) {
-        // Phrase-level fuzzy matching with tolerance for fillers and paraphrasing
-        let recentSpoken = Array(spokenWords.suffix(5))
-        let fillerWords: Set<String> = Self.fillerWordsForCurrentLocale()
-
-        let filteredSpoken = recentSpoken.filter { !fillerWords.contains($0) }
+        let fillerWords = cachedFillerWords
+        let filteredSpoken = spokenWords.filter { !$0.isEmpty && !fillerWords.contains($0) }
         guard !filteredSpoken.isEmpty else { return }
 
-        // Look ahead in script for best match
         let searchStart = currentWordIndex
-        let searchEnd = min(currentWordIndex + maxJumpDistance * 2, scriptWords.count)
+        let searchEnd = min(currentWordIndex + maxJumpDistance, scriptWords.count)
+        guard searchStart < searchEnd else { return }
 
-        var bestMatchIndex = currentWordIndex
-        var bestMatchScore = 0
+        // Find the furthest script position that matches spoken words
+        // Walk through spoken words sequentially, matching against script
+        var scriptPos = searchStart
+        var furthestMatch = currentWordIndex
+
+        for spoken in filteredSpoken {
+            // Search from current script position forward
+            let localEnd = min(scriptPos + 8, searchEnd)
+            for j in scriptPos..<localEnd {
+                if scriptWords[j] == spoken || levenshteinClose(scriptWords[j], spoken) {
+                    furthestMatch = j + 1
+                    scriptPos = j + 1 // advance past matched word
+                    break
+                }
+            }
+        }
+
+        // Also do a sliding window check — find best cluster match
+        // for cases where sequential matching misses due to filler/reordering
+        var bestWindowEnd = currentWordIndex
+        var bestWindowScore = 0
+        let windowSize = min(filteredSpoken.count, 6)
 
         for i in searchStart..<searchEnd {
             var score = 0
-            for spoken in filteredSpoken {
-                let scriptEnd = min(i + 3, scriptWords.count)
-                for j in i..<scriptEnd {
+            var lastMatchPos = i - 1
+            let scriptEnd = min(i + windowSize + 4, searchEnd)
+            for spoken in filteredSpoken.suffix(windowSize) {
+                for j in (lastMatchPos + 1)..<scriptEnd {
                     if scriptWords[j] == spoken || levenshteinClose(scriptWords[j], spoken) {
                         score += 1
+                        lastMatchPos = j
                         break
                     }
                 }
             }
-            if score > bestMatchScore {
-                bestMatchScore = score
-                bestMatchIndex = i
+            if score > bestWindowScore {
+                bestWindowScore = score
+                bestWindowEnd = lastMatchPos + 1
             }
         }
 
-        if bestMatchScore >= 2 && bestMatchIndex >= currentWordIndex {
-            let newIndex = min(bestMatchIndex + 1, scriptWords.count)
-            if newIndex > currentWordIndex {
-                currentWordIndex = newIndex
-                recordWordAdvance(to: newIndex)
-                debugLog(message: "Smart: advanced to word \(currentWordIndex) (score: \(bestMatchScore))")
-            }
+        // Use whichever method found a further position
+        let targetIndex: Int
+        if bestWindowScore >= 1 && bestWindowEnd > furthestMatch {
+            targetIndex = bestWindowEnd
+        } else {
+            targetIndex = furthestMatch
+        }
+
+        if targetIndex > currentWordIndex {
+            currentWordIndex = min(targetIndex, scriptWords.count)
+            recordWordAdvance(to: currentWordIndex)
+            debugLog(message: "Smart: advanced to word \(currentWordIndex)")
         }
     }
 

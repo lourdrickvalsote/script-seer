@@ -2,14 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>ScriptSeer needs microphone access for speech-follow prompting and camera recording.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>ScriptSeer uses speech recognition to follow along as you read your script aloud.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>ScriptSeer uses the camera to record video with your script overlay.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>ScriptSeer saves your recorded videos to the Photos library.</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

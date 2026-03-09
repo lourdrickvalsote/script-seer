@@ -3,6 +3,7 @@ import SwiftData
 
 @main
 struct ScriptSeerApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var showSplash = true
 

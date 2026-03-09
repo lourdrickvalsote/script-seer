@@ -5,6 +5,8 @@ import SwiftUI
 @Observable
 final class ExternalDisplayManager {
     var isExternalDisplayConnected: Bool = false
+    var isExternalOutputEnabled: Bool = false
+    var independentMirror: Bool = false
     var externalWindow: UIWindow?
 
     private var screenObservers: [NSObjectProtocol] = []
@@ -55,6 +57,7 @@ final class ExternalDisplayManager {
 
     private func connectExternalDisplay(screen: UIScreen) {
         isExternalDisplayConnected = true
+        checkForExternalDisplay()
     }
 
     private func disconnectExternalDisplay() {
@@ -86,6 +89,12 @@ final class ExternalDisplayManager {
             window.isHidden = false
             externalWindow = window
         }
+    }
+
+    /// Show teleprompter on external display synced to a prompt session
+    func showTeleprompter(session: PromptSession) {
+        let view = ExternalPromptView(session: session, externalDisplay: self)
+        showOnExternalDisplay(view)
     }
 
     /// Dismiss external display content

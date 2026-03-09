@@ -11,6 +11,8 @@ struct ScriptsView: View {
     @Query(sort: \Script.updatedAt, order: .reverse) private var scripts: [Script]
     @Query(sort: \ScriptFolder.name) private var folders: [ScriptFolder]
     @State private var searchText = ""
+    @State private var debouncedSearchText = ""
+    @State private var searchTask: Task<Void, Never>?
     @State private var sortOrder: ScriptSortOrder = .recent
     @State private var selectedFolder: ScriptFolder?
     @State private var showNewFolderAlert = false
@@ -20,7 +22,6 @@ struct ScriptsView: View {
     @State private var showRenameFolderAlert = false
     @State private var renameFolderName = ""
     @State private var folderToRename: ScriptFolder?
-    @State private var showDeleteConfirmation = false
     @State private var scriptToDelete: Script?
     @State private var showDeleteFolderConfirmation = false
     @State private var folderToDelete: ScriptFolder?
@@ -30,16 +31,16 @@ struct ScriptsView: View {
     private var filteredScripts: [Script] {
         var filtered: [Script]
         if let folder = selectedFolder {
-            filtered = scripts.filter { $0.folder?.id == folder.id }
+            filtered = scripts.filter { $0.folder?.id == folder.id && !$0.isInTrash }
         } else {
-            filtered = Array(scripts)
+            filtered = scripts.filter { !$0.isInTrash }
         }
 
-        if !searchText.isEmpty {
-            let query = searchText.lowercased()
+        if !debouncedSearchText.isEmpty {
+            let query = debouncedSearchText.lowercased()
             filtered = filtered.filter {
-                $0.title.lowercased().contains(query) ||
-                $0.content.lowercased().contains(query)
+                $0.title.localizedCaseInsensitiveContains(query) ||
+                $0.content.localizedCaseInsensitiveContains(query)
             }
         }
 
@@ -53,7 +54,7 @@ struct ScriptsView: View {
 
     var body: some View {
         Group {
-                if scripts.isEmpty {
+                if scripts.filter({ !$0.isInTrash }).isEmpty {
                     VStack {
                         Spacer()
                         SSEmptyState(
@@ -150,8 +151,9 @@ struct ScriptsView: View {
                                     ))
                                     .swipeActions(edge: .trailing) {
                                         Button(role: .destructive) {
-                                            scriptToDelete = script
-                                            showDeleteConfirmation = true
+                                            withAnimation(SSAnimation.standard) {
+                                                softDeleteScript(script)
+                                            }
                                         } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
@@ -183,6 +185,18 @@ struct ScriptsView: View {
             .background(SSColors.background)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: searchText) { _, newValue in
+                searchTask?.cancel()
+                if newValue.isEmpty {
+                    debouncedSearchText = ""
+                } else {
+                    searchTask = Task {
+                        try? await Task.sleep(for: .milliseconds(300))
+                        guard !Task.isCancelled else { return }
+                        debouncedSearchText = newValue
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
@@ -218,20 +232,6 @@ struct ScriptsView: View {
                 TextField("Folder name", text: $renameFolderName)
                 Button("Rename") { renameFolder() }
                 Button("Cancel", role: .cancel) {}
-            }
-            .confirmationDialog(
-                "Delete \"\(scriptToDelete?.title ?? "Script")\"?",
-                isPresented: $showDeleteConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete", role: .destructive) {
-                    if let script = scriptToDelete {
-                        deleteScript(script)
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This script will be permanently deleted.")
             }
             .confirmationDialog(
                 "Delete folder \"\(folderToDelete?.name ?? "")\"?",
@@ -325,8 +325,8 @@ struct ScriptsView: View {
         SSHaptics.light()
     }
 
-    private func deleteScript(_ script: Script) {
-        modelContext.delete(script)
+    private func softDeleteScript(_ script: Script) {
+        script.softDelete()
         SSHaptics.medium()
     }
 

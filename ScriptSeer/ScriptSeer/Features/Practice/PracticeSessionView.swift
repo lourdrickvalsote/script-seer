@@ -220,15 +220,33 @@ struct PracticeSessionView: View {
                 Color.clear.frame(width: 3)
             }
 
-            Text(line)
-                .font(SSTypography.body)
-                .foregroundStyle(
-                    isCurrent ? SSColors.textPrimary :
-                    isPast ? SSColors.textTertiary :
-                    SSColors.textSecondary
-                )
-                .lineSpacing(6)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            Group {
+                if isCurrent && useSpeechFollow {
+                    let wordOffset = practiceSession.lineWordRanges[index].start
+                    highlightedText(
+                        content: line,
+                        globalWordIndex: speechEngine.currentWordIndex,
+                        globalWordOffset: wordOffset,
+                        currentColor: SSColors.textPrimary,
+                        pastColor: SSColors.textTertiary,
+                        futureColor: SSColors.textSecondary,
+                        fontSize: 17,
+                        fontWeight: .regular
+                    )
+                    .lineSpacing(6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text(line)
+                        .font(SSTypography.body)
+                        .foregroundStyle(
+                            isCurrent ? SSColors.textPrimary :
+                            isPast ? SSColors.textTertiary :
+                            SSColors.textSecondary
+                        )
+                        .lineSpacing(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
         }
         .padding(.vertical, SSSpacing.xxs)
         .padding(.horizontal, SSSpacing.xs)
@@ -456,14 +474,17 @@ struct PracticeSessionView: View {
 
     private func resetStallTimer() {
         stallTimer?.invalidate()
-        stallTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
-            guard useSpeechFollow, practiceSession.isActive else { return }
+        stallTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+            guard useSpeechFollow, practiceSession.isActive else {
+                stallTimer?.invalidate()
+                stallTimer = nil
+                return
+            }
             if speechEngine.currentWordIndex == lastWordIndex &&
                (speechEngine.state == .following || speechEngine.state == .lowConfidence) {
                 triggerAutoStumble()
             }
-            // Restart stall detection
-            resetStallTimer()
+            lastWordIndex = speechEngine.currentWordIndex
         }
     }
 

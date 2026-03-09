@@ -80,6 +80,17 @@ struct SettingsView: View {
                         }
                     }
 
+                    // Remote Controls
+                    SettingsSection("Remote Controls") {
+                        VStack(alignment: .leading, spacing: SSSpacing.sm) {
+                            remoteDeviceRow(icon: "keyboard", title: "Bluetooth Clickers", detail: "Page Up/Down, arrows, Return")
+                            SettingsDivider()
+                            remoteDeviceRow(icon: "gamecontroller", title: "Game Controllers", detail: "Xbox, PlayStation, Siri Remote")
+                            SettingsDivider()
+                            remoteDeviceRow(icon: "circle.circle", title: "Foot Pedals", detail: "HID keyboard pedals")
+                        }
+                    }
+
                     // AI Actions
                     SettingsSection("AI Actions") {
                         HStack(spacing: SSSpacing.sm) {
@@ -113,6 +124,19 @@ struct SettingsView: View {
                                     .labelsHidden()
                                     .tint(SSColors.accent)
                             }
+
+                            SettingsDivider()
+
+                            NavigationLink(destination: RecentlyDeletedView()) {
+                                HStack {
+                                    SettingsIconLabel(icon: "trash", title: "Recently Deleted")
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(SSColors.textTertiary)
+                                }
+                            }
+                            .buttonStyle(.plain)
 
                             SettingsDivider()
 
@@ -197,6 +221,26 @@ struct SettingsView: View {
             .background(SSColors.background)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private func remoteDeviceRow(icon: String, title: String, detail: String) -> some View {
+        HStack(spacing: SSSpacing.sm) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(SSColors.accent)
+                .frame(width: 28, height: 28)
+                .background(SSColors.accentWarm)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(SSTypography.body)
+                    .foregroundStyle(SSColors.textPrimary)
+                Text(detail)
+                    .font(SSTypography.caption)
+                    .foregroundStyle(SSColors.textTertiary)
+            }
         }
     }
 

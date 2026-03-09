@@ -10,7 +10,10 @@ final class PracticeSession {
     var usedSpeechFollow: Bool = false
 
     let script: Script
+    let contentOverride: String?
     let lines: [String]
+
+    var content: String { contentOverride ?? script.content }
 
     // Cumulative word counts for mapping word index → line index
     let lineWordRanges: [(start: Int, end: Int)]
@@ -19,11 +22,10 @@ final class PracticeSession {
         lineWordRanges.last?.end ?? 0
     }
 
-    init(script: Script) {
+    init(script: Script, contentOverride: String? = nil) {
         self.script = script
-        self.lines = script.content
-            .components(separatedBy: .newlines)
-            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        self.contentOverride = contentOverride
+        self.lines = splitIntoSentences(contentOverride ?? script.content)
 
         // Build cumulative word ranges per line
         var ranges: [(start: Int, end: Int)] = []
