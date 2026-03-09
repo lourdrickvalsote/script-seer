@@ -116,7 +116,7 @@ struct ExportService {
         let sanitizedTitle = script.title
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: "-")
-        let fileName = "\(sanitizedTitle).\(format.fileExtension)"
+        let fileName = "\(sanitizedTitle)-\(UUID().uuidString).\(format.fileExtension)"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
 
         try data.write(to: url)

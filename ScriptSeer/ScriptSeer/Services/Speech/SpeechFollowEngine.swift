@@ -69,8 +69,8 @@ final class SpeechFollowEngine {
                 let authorized = status == .authorized
                 DispatchQueue.main.async {
                     self.isAvailable = authorized
+                    continuation.resume(returning: authorized)
                 }
-                continuation.resume(returning: authorized)
             }
         }
     }
@@ -136,7 +136,15 @@ final class SpeechFollowEngine {
         tapInstalled = true
 
         audioEngine.prepare()
-        try audioEngine.start()
+        do {
+            try audioEngine.start()
+        } catch {
+            // Clean up tap and audio session before rethrowing
+            inputNode.removeTap(onBus: 0)
+            tapInstalled = false
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            throw error
+        }
 
         recognitionTask = speechRecognizer?.recognitionTask(with: request) { [weak self] result, error in
             DispatchQueue.main.async {

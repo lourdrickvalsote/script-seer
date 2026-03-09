@@ -80,10 +80,18 @@ struct ProUpgradeView: View {
 
                     // CTA
                     VStack(spacing: SSSpacing.sm) {
-                        SSButton("Start Free Trial", icon: "star.fill", variant: .primary) {
-                            Task { await purchaseSelected() }
+                        ZStack {
+                            SSButton("Start Free Trial", icon: "star.fill", variant: .primary) {
+                                Task { await purchaseSelected() }
+                            }
+                            .disabled(store.isLoading)
+                            .opacity(store.isLoading ? 0.6 : 1.0)
+
+                            if store.isLoading {
+                                ProgressView()
+                                    .tint(.white)
+                            }
                         }
-                        .disabled(store.isLoading)
 
                         Text("7-day free trial, then auto-renews")
                             .font(SSTypography.caption)

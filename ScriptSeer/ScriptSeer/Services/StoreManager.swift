@@ -73,7 +73,7 @@ final class StoreManager {
             if case .verified(let transaction) = result {
                 if transaction.productID == monthlyProductID || transaction.productID == annualProductID {
                     let isNotRevoked = transaction.revocationDate == nil
-                    let isNotExpired = transaction.expirationDate == nil || transaction.expirationDate! > Date()
+                    let isNotExpired = transaction.expirationDate.map { $0 > Date() } ?? true
                     if isNotRevoked && isNotExpired {
                         hasActiveSubscription = true
 

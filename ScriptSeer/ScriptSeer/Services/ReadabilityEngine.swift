@@ -75,6 +75,8 @@ struct ReadabilityEngine {
     /// Find the best natural break point near the target word count.
     /// Prefers breaking after commas, conjunctions, and prepositions.
     private static func findNaturalBreak(in words: [String], target: Int) -> Int? {
+        guard words.count > 1 else { return nil }
+
         let breakWords: Set<String> = ["and", "but", "or", "so", "then", "that", "which", "when",
                                         "while", "because", "if", "as", "to", "for", "with", "in"]
 

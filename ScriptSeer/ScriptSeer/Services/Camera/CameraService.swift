@@ -111,40 +111,47 @@ final class CameraService: NSObject {
 
         let newPosition: CameraPosition = currentPosition == .front ? .back : .front
 
-        captureSession.beginConfiguration()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
 
-        // Save existing inputs for rollback
-        let existingInputs = captureSession.inputs
+            self.captureSession.beginConfiguration()
 
-        // Remove existing inputs
-        for input in existingInputs {
-            captureSession.removeInput(input)
-        }
+            // Save existing inputs for rollback
+            let existingInputs = self.captureSession.inputs
 
-        guard let device = bestDevice(for: newPosition),
-              let input = try? AVCaptureDeviceInput(device: device),
-              captureSession.canAddInput(input) else {
-            // Restore previous inputs on failure
+            // Remove existing inputs
             for input in existingInputs {
-                if captureSession.canAddInput(input) {
-                    captureSession.addInput(input)
-                }
+                self.captureSession.removeInput(input)
             }
-            captureSession.commitConfiguration()
-            return
-        }
-        captureSession.addInput(input)
-        currentDevice = device
-        currentPosition = newPosition
 
-        // Re-add audio
-        if let audioDevice = AVCaptureDevice.default(for: .audio),
-           let audioInput = try? AVCaptureDeviceInput(device: audioDevice),
-           captureSession.canAddInput(audioInput) {
-            captureSession.addInput(audioInput)
-        }
+            guard let device = self.bestDevice(for: newPosition),
+                  let input = try? AVCaptureDeviceInput(device: device),
+                  self.captureSession.canAddInput(input) else {
+                // Restore previous inputs on failure
+                for input in existingInputs {
+                    if self.captureSession.canAddInput(input) {
+                        self.captureSession.addInput(input)
+                    }
+                }
+                self.captureSession.commitConfiguration()
+                return
+            }
+            self.captureSession.addInput(input)
+            self.currentDevice = device
 
-        captureSession.commitConfiguration()
+            // Re-add audio
+            if let audioDevice = AVCaptureDevice.default(for: .audio),
+               let audioInput = try? AVCaptureDeviceInput(device: audioDevice),
+               self.captureSession.canAddInput(audioInput) {
+                self.captureSession.addInput(audioInput)
+            }
+
+            self.captureSession.commitConfiguration()
+
+            DispatchQueue.main.async {
+                self.currentPosition = newPosition
+            }
+        }
     }
 
     func startRecording() {
@@ -176,7 +183,10 @@ final class CameraService: NSObject {
     }
 
     func setResolution(_ newResolution: VideoResolution) {
-        guard recordingState == .idle || recordingState == .saved else { return }
+        switch recordingState {
+        case .idle, .saved, .failed: break
+        default: return
+        }
         resolution = newResolution
         captureSession.beginConfiguration()
         if captureSession.canSetSessionPreset(newResolution.sessionPreset) {
@@ -246,9 +256,10 @@ extension CameraService: AVCaptureFileOutputRecordingDelegate {
             } else {
                 self?.takeCount += 1
                 self?.lastSavedURL = outputFileURL
-                self?.recordingState = .saved
-                self?.saveToPhotos(url: outputFileURL) { success in
-                    if !success {
+                self?.saveToPhotos(url: outputFileURL) { [weak self] success in
+                    if success {
+                        self?.recordingState = .saved
+                    } else {
                         self?.recordingState = .failed("Take recorded but could not be saved to Photos. Check permissions in Settings.")
                     }
                 }

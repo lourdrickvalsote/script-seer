@@ -71,6 +71,9 @@ struct CameraRecordView: View {
         .onAppear {
             checkPermissions()
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            checkPermissions()
+        }
         .onDisappear {
             if cameraService.recordingState == .recording || cameraService.recordingState == .paused {
                 cameraService.stopRecording()
@@ -555,6 +558,26 @@ struct CameraRecordView: View {
         }
     }
 
+    private var permissionDeniedTitle: String {
+        if cameraPermissionDenied && micPermissionDenied {
+            return "Camera & Microphone Access Required"
+        } else if cameraPermissionDenied {
+            return "Camera Access Required"
+        } else {
+            return "Microphone Access Required"
+        }
+    }
+
+    private var permissionDeniedMessage: String {
+        if cameraPermissionDenied && micPermissionDenied {
+            return "ScriptSeer needs camera and microphone access to record video. Please enable both in Settings."
+        } else if cameraPermissionDenied {
+            return "ScriptSeer needs camera access to record video. Please enable it in Settings."
+        } else {
+            return "ScriptSeer needs microphone access for audio recording. Please enable it in Settings."
+        }
+    }
+
     private var permissionDeniedOverlay: some View {
         ZStack {
             Color.black.opacity(0.85).ignoresSafeArea()
@@ -564,13 +587,11 @@ struct CameraRecordView: View {
                     .font(.system(size: 48))
                     .foregroundStyle(.white.opacity(0.6))
 
-                Text(cameraPermissionDenied ? "Camera Access Required" : "Microphone Access Required")
+                Text(permissionDeniedTitle)
                     .font(SSTypography.headline)
                     .foregroundStyle(.white)
 
-                Text(cameraPermissionDenied
-                     ? "ScriptSeer needs camera access to record video. Please enable it in Settings."
-                     : "ScriptSeer needs microphone access for audio recording. Please enable it in Settings.")
+                Text(permissionDeniedMessage)
                     .font(SSTypography.subheadline)
                     .foregroundStyle(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
