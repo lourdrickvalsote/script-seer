@@ -8,6 +8,7 @@ struct TeleprompterView: View {
     @State private var showExitConfirmation = false
     @State private var speechEngine = SpeechFollowEngine()
     @State private var showSpeechControls = false
+    @State private var showSpeechPermissionDenied = false
     @State private var focusConfig = FocusWindowConfig()
     @State private var currentFocusLine: Int = 0
     @State private var showScrubBar = false
@@ -65,6 +66,16 @@ struct TeleprompterView: View {
                 dismiss()
             }
             Button("Cancel", role: .cancel) {}
+        }
+        .alert("Speech Recognition Unavailable", isPresented: $showSpeechPermissionDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("ScriptSeer needs speech recognition permission for hands-free script following. Please enable it in Settings.")
         }
         .onDisappear { stopTimer() }
         .onAppear {
@@ -346,9 +357,10 @@ struct TeleprompterView: View {
     }
 
     private func splitScriptIntoChunks(_ text: String, wordsPerChunk: Int) -> [String] {
+        let chunkSize = max(1, wordsPerChunk)
         let words = text.split(separator: " ").map(String.init)
-        return stride(from: 0, to: words.count, by: wordsPerChunk).map { start in
-            let end = min(start + wordsPerChunk, words.count)
+        return stride(from: 0, to: words.count, by: chunkSize).map { start in
+            let end = min(start + chunkSize, words.count)
             return words[start..<end].joined(separator: " ")
         }
     }
@@ -365,6 +377,7 @@ struct TeleprompterView: View {
             guard session.state == .prompting else { return }
             if self.currentFocusLine >= totalLines - 1 {
                 self.stopTimer()
+                SSHaptics.success()
                 session.complete()
                 return
             }
@@ -714,6 +727,7 @@ struct TeleprompterView: View {
             // Auto-complete when scrolled past content
             if session.measuredContentHeight > 0, session.scrollOffset >= session.measuredContentHeight {
                 self.stopTimer()
+                SSHaptics.success()
                 session.complete()
             }
         }
@@ -739,6 +753,7 @@ struct TeleprompterView: View {
                     speechEngine.start()
                     SSHaptics.success()
                 } else {
+                    showSpeechPermissionDenied = true
                     SSHaptics.error()
                 }
             }

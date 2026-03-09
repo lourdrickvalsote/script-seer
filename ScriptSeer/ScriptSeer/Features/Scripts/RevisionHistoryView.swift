@@ -39,9 +39,9 @@ struct RevisionHistoryView: View {
                             .listRowBackground(SSColors.surfaceElevated)
                         }
                         .onDelete { indexSet in
+                            let snapshot = sortedRevisions
                             for index in indexSet {
-                                let revision = sortedRevisions[index]
-                                modelContext.delete(revision)
+                                modelContext.delete(snapshot[index])
                             }
                         }
                     }
@@ -94,6 +94,7 @@ struct RevisionHistoryView: View {
         script.updateContent(revision.content)
         script.updateTitle(revision.title)
         SSHaptics.success()
+        dismiss()
     }
 }
 

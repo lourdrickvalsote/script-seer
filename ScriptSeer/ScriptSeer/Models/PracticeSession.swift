@@ -51,6 +51,14 @@ final class PracticeSession {
         isActive = true
     }
 
+    func startFrom(line index: Int) {
+        startTime = Date()
+        endTime = nil
+        stumbles = []
+        currentLineIndex = max(0, min(index, lines.count - 1))
+        isActive = true
+    }
+
     func finish() {
         endTime = Date()
         isActive = false

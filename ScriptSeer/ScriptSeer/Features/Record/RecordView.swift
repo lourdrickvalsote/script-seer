@@ -22,6 +22,7 @@ struct RecordView: View {
                             let script = Script(title: "Untitled Script", content: "")
                             modelContext.insert(script)
                             newScript = script
+                            SSHaptics.light()
                         }
                         Spacer()
                     }
@@ -31,7 +32,10 @@ struct RecordView: View {
                             SSSectionHeader("Select a Script to Record")
 
                             ForEach(scripts) { script in
-                                Button(action: { selectedScript = script }) {
+                                Button(action: {
+                                    selectedScript = script
+                                    SSHaptics.light()
+                                }) {
                                     SSCard {
                                         HStack {
                                             VStack(alignment: .leading, spacing: SSSpacing.xxs) {

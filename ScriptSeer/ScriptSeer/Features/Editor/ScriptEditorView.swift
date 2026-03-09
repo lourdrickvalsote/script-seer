@@ -181,6 +181,7 @@ struct ScriptEditorView: View {
     }
 
     private func autoSaveRevisionIfNeeded() {
+        guard !script.isDeleted else { return }
         let delta = abs(script.wordCount - initialWordCount)
         // Save a revision if the word count changed by 10+ words
         guard delta >= 10 else { return }

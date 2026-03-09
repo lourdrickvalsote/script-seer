@@ -176,9 +176,11 @@ struct PracticeSessionView: View {
     // MARK: - Timer
 
     private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+        let t = Timer(timeInterval: 1.0, repeats: true) { _ in
             tick += 1
         }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 
     private func stopTimer() {
@@ -187,8 +189,7 @@ struct PracticeSessionView: View {
     }
 
     private func retryFromLine(_ index: Int) {
-        practiceSession.start()
-        practiceSession.goToLine(index)
+        practiceSession.startFrom(line: index)
         stopTimer()
         startTimer()
     }
