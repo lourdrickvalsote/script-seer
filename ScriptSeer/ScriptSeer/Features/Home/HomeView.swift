@@ -15,76 +15,79 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: SSSpacing.lg) {
-                    // Branded header matching splash
-                    HStack(spacing: 0) {
-                        Text("Script")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(SSColors.textSecondary)
-                        Text("Seer")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(SSColors.accent)
-                    }
-                    .padding(.top, SSSpacing.xs)
+            VStack(alignment: .leading, spacing: 0) {
+                // Branded header — sticky
+                HStack(spacing: 0) {
+                    Text("Script")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(SSColors.textSecondary)
+                    Text("Seer")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(SSColors.accent)
+                }
+                .padding(.top, SSSpacing.xs)
+                .padding(.bottom, SSSpacing.sm)
+                .padding(.horizontal, SSSpacing.md)
 
-                    // Quick Actions
-                    SSSectionHeader("Quick Actions")
+                ScrollView {
+                    VStack(alignment: .leading, spacing: SSSpacing.lg) {
+                        // Quick Actions
+                        SSSectionHeader("Quick Actions")
 
-                    LazyVGrid(
-                        columns: [
-                            GridItem(.flexible(), spacing: SSSpacing.xs),
-                            GridItem(.flexible(), spacing: SSSpacing.xs)
-                        ],
-                        spacing: SSSpacing.xs
-                    ) {
-                        QuickActionCard(icon: "plus", title: "New Script", subtitle: "Start writing") {
-                            createNewScript()
-                        }
-                        QuickActionCard(icon: "doc.badge.arrow.up", title: "Import", subtitle: "From file") {
-                            showFilePicker = true
-                        }
-                        NavigationLink(destination: ScriptsView()) {
-                            QuickActionCardLabel(icon: "doc.text.fill", title: "Scripts", subtitle: "Your library")
-                        }
-                        .buttonStyle(.plain)
-                        NavigationLink(destination: PracticeView()) {
-                            QuickActionCardLabel(icon: "mic.fill", title: "Practice", subtitle: "Rehearse")
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    // Recent Scripts
-                    if recentScripts.isEmpty {
-                        SSSectionHeader("Recent Scripts")
-                        VStack {
-                            Spacer().frame(minHeight: SSSpacing.lg)
-                            SSEmptyState(
-                                icon: "doc.text",
-                                title: "No Scripts Yet",
-                                subtitle: "Create your first script to start prompting like a pro."
-                            )
-                            Spacer().frame(minHeight: SSSpacing.xxl)
-                            SSButton("Create Script", icon: "plus", variant: .primary) {
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible(), spacing: SSSpacing.xs),
+                                GridItem(.flexible(), spacing: SSSpacing.xs)
+                            ],
+                            spacing: SSSpacing.xs
+                        ) {
+                            QuickActionCard(icon: "plus", title: "New Script", subtitle: "Start writing") {
                                 createNewScript()
                             }
-                            .padding(.bottom, SSSpacing.md)
+                            QuickActionCard(icon: "doc.badge.arrow.up", title: "Import", subtitle: "From file") {
+                                showFilePicker = true
+                            }
+                            NavigationLink(destination: ScriptsView()) {
+                                QuickActionCardLabel(icon: "doc.text.fill", title: "Scripts", subtitle: "Your library")
+                            }
+                            .buttonStyle(.plain)
+                            NavigationLink(destination: PracticeView()) {
+                                QuickActionCardLabel(icon: "mic.fill", title: "Practice", subtitle: "Rehearse")
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .frame(minHeight: 300)
-                    } else {
-                        SSSectionHeader("Recent Scripts")
-                        VStack(spacing: SSSpacing.sm) {
-                            ForEach(recentScripts) { script in
-                                NavigationLink(destination: ScriptDetailView(script: script)) {
-                                    RecentScriptCard(script: script)
+
+                        // Recent Scripts
+                        if recentScripts.isEmpty {
+                            SSSectionHeader("Recent Scripts")
+                            VStack {
+                                Spacer().frame(minHeight: SSSpacing.lg)
+                                SSEmptyState(
+                                    icon: "doc.text",
+                                    title: "No Scripts Yet",
+                                    subtitle: "Create your first script to start prompting like a pro."
+                                )
+                                Spacer().frame(minHeight: SSSpacing.xxl)
+                                SSButton("Create Script", icon: "plus", variant: .primary) {
+                                    createNewScript()
                                 }
-                                .buttonStyle(.plain)
+                                .padding(.bottom, SSSpacing.md)
+                            }
+                            .frame(minHeight: 300)
+                        } else {
+                            SSSectionHeader("Recent Scripts")
+                            VStack(spacing: SSSpacing.sm) {
+                                ForEach(recentScripts) { script in
+                                    NavigationLink(destination: ScriptDetailView(script: script)) {
+                                        RecentScriptCard(script: script)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
                     }
+                    .padding(.horizontal, SSSpacing.md)
                 }
-                .padding(.horizontal, SSSpacing.md)
-                .padding(.top, SSSpacing.xs)
             }
             .background(SSColors.background)
             .navigationBarTitleDisplayMode(.inline)

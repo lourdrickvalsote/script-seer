@@ -40,10 +40,14 @@ struct PracticeView: View {
                         .padding(.bottom, SSSpacing.lg)
                     }
                 } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: SSSpacing.md) {
-                            SSSearchBar(text: $searchText, placeholder: "Search scripts")
+                    VStack(spacing: 0) {
+                        SSSearchBar(text: $searchText, placeholder: "Search scripts")
+                            .padding(.horizontal, SSSpacing.md)
+                            .padding(.top, SSSpacing.xs)
+                            .padding(.bottom, SSSpacing.xs)
 
+                        ScrollView {
+                        VStack(alignment: .leading, spacing: SSSpacing.md) {
                             if filteredScripts.isEmpty {
                                 VStack(spacing: SSSpacing.md) {
                                     Image(systemName: "magnifyingglass")
@@ -72,6 +76,7 @@ struct PracticeView: View {
                         }
                         .padding(.horizontal, SSSpacing.md)
                         .padding(.top, SSSpacing.xs)
+                    }
                     }
                 }
             }
