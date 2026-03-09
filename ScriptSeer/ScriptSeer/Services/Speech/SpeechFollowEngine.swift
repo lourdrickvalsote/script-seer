@@ -44,12 +44,11 @@ final class SpeechFollowEngine {
     private var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
     private var scriptWords: [String] = []
-    private let confidenceThreshold: Float = 0.15
-    private let maxJumpDistance = 25 // max words to search ahead
+    private let maxSearchAhead = 15 // max words to search ahead of current position
     private var tapInstalled = false
     private var cachedFillerWords: Set<String> = []
+    private var cachedStopWords: Set<String> = []
     private var useExistingAudioSession = false
-    private var lastProcessedSpokenCount = 0 // track already-processed words
 
     // Pace tracking
     private var wordTimestamps: [(index: Int, time: Date)] = []
@@ -64,8 +63,8 @@ final class SpeechFollowEngine {
             .filter { !$0.isEmpty }
         currentWordIndex = 0
         confidence = 1.0
-        lastProcessedSpokenCount = 0
         cachedFillerWords = Self.fillerWordsForCurrentLocale()
+        cachedStopWords = Self.stopWords
         debugLog(message: "Prepared with \(scriptWords.count) words")
     }
 
@@ -190,6 +189,8 @@ final class SpeechFollowEngine {
     }
 
     private func processResult(_ result: SFSpeechRecognitionResult) {
+        // Use the full transcription every time — Apple revises partial results,
+        // so incremental tracking is unreliable. Instead, always use the tail.
         let spokenWords = result.bestTranscription.formattedString
             .lowercased()
             .components(separatedBy: .whitespacesAndNewlines)
@@ -198,126 +199,107 @@ final class SpeechFollowEngine {
 
         guard !spokenWords.isEmpty else { return }
 
-        // Update confidence from segments (for UI display)
+        // Update confidence for UI
         if let lastSegment = result.bestTranscription.segments.last {
             confidence = Float(lastSegment.confidence)
         }
 
-        // Only skip if confidence is very low AND non-zero (0 = partial result, always process)
-        if confidence > 0 && confidence < confidenceThreshold {
-            if state != .lowConfidence {
-                state = .lowConfidence
-                debugLog(message: "Low confidence: \(String(format: "%.2f", confidence))")
-            }
-            return
-        }
-
         state = .following
 
-        // Only process newly spoken words since last callback
-        let newWords: [String]
-        if spokenWords.count > lastProcessedSpokenCount {
-            newWords = Array(spokenWords.suffix(from: lastProcessedSpokenCount))
-            lastProcessedSpokenCount = spokenWords.count
-        } else {
-            // Transcription was revised — reprocess recent words
-            let reprocessCount = min(spokenWords.count, 8)
-            newWords = Array(spokenWords.suffix(reprocessCount))
-            lastProcessedSpokenCount = spokenWords.count
-        }
-
-        guard !newWords.isEmpty else { return }
+        // Always use the recent tail of the transcription for matching.
+        // This handles Apple's revisions naturally — we just re-match.
+        let tailSize = min(spokenWords.count, 12)
+        let recentSpoken = Array(spokenWords.suffix(tailSize))
 
         switch mode {
         case .strict:
-            advanceStrict(spokenWords: newWords)
+            advanceStrict(spokenWords: recentSpoken)
         case .smart:
-            advanceSmart(spokenWords: newWords)
+            advanceSmart(spokenWords: recentSpoken)
         }
     }
 
     private func advanceStrict(spokenWords: [String]) {
-        let searchEnd = min(currentWordIndex + maxJumpDistance, scriptWords.count)
-        // Try to match every new spoken word against the script
+        // Match each spoken word sequentially against the script from current position
+        var scriptPos = currentWordIndex
+        let searchEnd = min(currentWordIndex + maxSearchAhead, scriptWords.count)
+
         for spoken in spokenWords {
-            guard !spoken.isEmpty else { continue }
-            for i in currentWordIndex..<searchEnd {
-                if scriptWords[i] == spoken || levenshteinClose(scriptWords[i], spoken) {
-                    let newIndex = i + 1
-                    if newIndex > currentWordIndex {
-                        currentWordIndex = newIndex
-                        recordWordAdvance(to: newIndex)
-                        debugLog(message: "Strict: matched '\(spoken)' at \(i)")
-                    }
+            guard !spoken.isEmpty, scriptPos < searchEnd else { break }
+            // Look for this word within a small window ahead
+            let localEnd = min(scriptPos + 4, searchEnd)
+            for j in scriptPos..<localEnd {
+                if scriptWords[j] == spoken || levenshteinClose(scriptWords[j], spoken) {
+                    scriptPos = j + 1
                     break
                 }
             }
+        }
+
+        if scriptPos > currentWordIndex {
+            currentWordIndex = scriptPos
+            recordWordAdvance(to: currentWordIndex)
+            debugLog(message: "Strict: advanced to word \(currentWordIndex)")
         }
     }
 
     private func advanceSmart(spokenWords: [String]) {
+        // Filter out filler words but KEEP stop words for sequential matching
+        // (stop words help confirm position when they appear in sequence)
         let fillerWords = cachedFillerWords
-        let filteredSpoken = spokenWords.filter { !$0.isEmpty && !fillerWords.contains($0) }
-        guard !filteredSpoken.isEmpty else { return }
+        let filtered = spokenWords.filter { !$0.isEmpty && !fillerWords.contains($0) }
+        guard filtered.count >= 2 else { return }
 
-        let searchStart = currentWordIndex
-        let searchEnd = min(currentWordIndex + maxJumpDistance, scriptWords.count)
-        guard searchStart < searchEnd else { return }
+        let searchEnd = min(currentWordIndex + maxSearchAhead, scriptWords.count)
+        guard currentWordIndex < searchEnd else { return }
 
-        // Find the furthest script position that matches spoken words
-        // Walk through spoken words sequentially, matching against script
-        var scriptPos = searchStart
-        var furthestMatch = currentWordIndex
+        // Strategy: find the best sequential alignment of spoken words against the script.
+        // Only match on content words (skip stop words for scoring, but use them for alignment).
+        // Require at least 2 content word matches to advance — prevents false jumps.
 
-        for spoken in filteredSpoken {
-            // Search from current script position forward
-            let localEnd = min(scriptPos + 8, searchEnd)
-            for j in scriptPos..<localEnd {
-                if scriptWords[j] == spoken || levenshteinClose(scriptWords[j], spoken) {
-                    furthestMatch = j + 1
-                    scriptPos = j + 1 // advance past matched word
-                    break
-                }
-            }
-        }
+        var bestPos = currentWordIndex
+        var bestContentMatches = 0
 
-        // Also do a sliding window check — find best cluster match
-        // for cases where sequential matching misses due to filler/reordering
-        var bestWindowEnd = currentWordIndex
-        var bestWindowScore = 0
-        let windowSize = min(filteredSpoken.count, 6)
+        // Try each starting position in the search window
+        for startPos in currentWordIndex..<searchEnd {
+            var scriptIdx = startPos
+            var contentMatches = 0
+            var totalMatches = 0
 
-        for i in searchStart..<searchEnd {
-            var score = 0
-            var lastMatchPos = i - 1
-            let scriptEnd = min(i + windowSize + 4, searchEnd)
-            for spoken in filteredSpoken.suffix(windowSize) {
-                for j in (lastMatchPos + 1)..<scriptEnd {
+            for spoken in filtered {
+                guard scriptIdx < searchEnd else { break }
+                // Search within a tight window of 3 words for each spoken word
+                let windowEnd = min(scriptIdx + 3, searchEnd)
+                var matched = false
+                for j in scriptIdx..<windowEnd {
                     if scriptWords[j] == spoken || levenshteinClose(scriptWords[j], spoken) {
-                        score += 1
-                        lastMatchPos = j
+                        scriptIdx = j + 1
+                        totalMatches += 1
+                        if !cachedStopWords.contains(spoken) {
+                            contentMatches += 1
+                        }
+                        matched = true
                         break
                     }
                 }
+                // If a content word didn't match, penalize — this isn't our position
+                if !matched && !cachedStopWords.contains(spoken) {
+                    break
+                }
             }
-            if score > bestWindowScore {
-                bestWindowScore = score
-                bestWindowEnd = lastMatchPos + 1
+
+            // Prefer positions with more content word matches
+            if contentMatches > bestContentMatches {
+                bestContentMatches = contentMatches
+                bestPos = scriptIdx
             }
         }
 
-        // Use whichever method found a further position
-        let targetIndex: Int
-        if bestWindowScore >= 1 && bestWindowEnd > furthestMatch {
-            targetIndex = bestWindowEnd
-        } else {
-            targetIndex = furthestMatch
-        }
-
-        if targetIndex > currentWordIndex {
-            currentWordIndex = min(targetIndex, scriptWords.count)
+        // Require at least 2 content word matches to prevent false jumps
+        if bestContentMatches >= 2 && bestPos > currentWordIndex {
+            currentWordIndex = min(bestPos, scriptWords.count)
             recordWordAdvance(to: currentWordIndex)
-            debugLog(message: "Smart: advanced to word \(currentWordIndex)")
+            debugLog(message: "Smart: advanced to word \(currentWordIndex) (\(bestContentMatches) content matches)")
         }
     }
 
@@ -395,6 +377,21 @@ final class SpeechFollowEngine {
         debugLog.append(entry)
         if debugLog.count > 50 { debugLog.removeFirst() }
     }
+
+    // Common words that appear too frequently to be reliable anchors for matching.
+    // They're still used for alignment but don't count toward the content match threshold.
+    private static let stopWords: Set<String> = [
+        "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did", "will", "would", "could",
+        "should", "may", "might", "shall", "can", "need", "must",
+        "i", "you", "he", "she", "it", "we", "they", "me", "him", "her",
+        "us", "them", "my", "your", "his", "its", "our", "their",
+        "this", "that", "these", "those", "what", "which", "who", "whom",
+        "and", "but", "or", "nor", "not", "no", "if", "then", "than",
+        "to", "of", "in", "on", "at", "by", "for", "with", "from",
+        "up", "out", "off", "into", "over", "after", "before",
+        "just", "very", "also", "too", "so", "as"
+    ]
 
     private static func fillerWordsForCurrentLocale() -> Set<String> {
         let lang = Locale.current.language.languageCode?.identifier ?? "en"
