@@ -3,91 +3,113 @@ import SwiftUI
 struct OnboardingView: View {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var currentPage = 0
+    @State private var dragOffset: CGFloat = 0
+    @State private var showPaywall = false
 
-    private let pages: [OnboardingPage] = [
-        OnboardingPage(
-            icon: "doc.text.fill",
-            title: "Write Your Script",
-            subtitle: "Create or import scripts from TXT, RTF, PDF, and DOCX files."
-        ),
-        OnboardingPage(
-            icon: "play.fill",
-            title: "Prompt Naturally",
-            subtitle: "Read on camera without looking like you're reading. Focus Window keeps text near the lens."
-        ),
-        OnboardingPage(
-            icon: "waveform",
-            title: "Speech Follow",
-            subtitle: "Your script advances as you speak. Strict mode for precision, Smart mode for flexibility."
-        ),
-        OnboardingPage(
-            icon: "video.fill",
-            title: "Record & Practice",
-            subtitle: "Record with overlay or rehearse with stumble tracking. Your scripts stay private on-device."
-        )
-    ]
+    private let totalPages = 5
 
     var body: some View {
-        ZStack {
-            SSColors.background.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                SSColors.background.ignoresSafeArea()
 
-            VStack(spacing: SSSpacing.xl) {
-                Spacer()
-
-                // Page content
-                TabView(selection: $currentPage) {
-                    ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
-                        VStack(spacing: SSSpacing.lg) {
-                            Image(systemName: page.icon)
-                                .font(.system(size: 64, weight: .light))
-                                .foregroundStyle(SSColors.accent)
-
-                            Text(page.title)
-                                .font(SSTypography.title)
-                                .foregroundStyle(SSColors.textPrimary)
-
-                            Text(page.subtitle)
-                                .font(SSTypography.subheadline)
-                                .foregroundStyle(SSColors.textSecondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, SSSpacing.xl)
-                        }
-                        .tag(index)
+                // Pages
+                ZStack {
+                    ForEach(0..<totalPages, id: \.self) { index in
+                        pageView(for: index)
+                            .frame(width: geometry.size.width)
+                            .offset(x: CGFloat(index - currentPage) * geometry.size.width + dragOffset)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .always))
-
-                Spacer()
-
-                // Actions
-                VStack(spacing: SSSpacing.sm) {
-                    if currentPage == pages.count - 1 {
-                        SSButton("Get Started", icon: "arrow.right", variant: .primary) {
-                            hasSeenOnboarding = true
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            dragOffset = value.translation.width
                         }
-                    } else {
-                        SSButton("Next", variant: .secondary) {
-                            withAnimation {
-                                currentPage += 1
+                        .onEnded { value in
+                            let threshold: CGFloat = 80
+                            if value.translation.width < -threshold, currentPage < totalPages - 1 {
+                                withAnimation(SSAnimation.spring) {
+                                    currentPage += 1
+                                    dragOffset = 0
+                                }
+                                SSHaptics.selection()
+                            } else if value.translation.width > threshold, currentPage > 0 {
+                                withAnimation(SSAnimation.spring) {
+                                    currentPage -= 1
+                                    dragOffset = 0
+                                }
+                                SSHaptics.selection()
+                            } else {
+                                withAnimation(SSAnimation.spring) {
+                                    dragOffset = 0
+                                }
+                            }
+                        }
+                )
+
+                // Bottom controls overlay
+                VStack {
+                    // Skip button
+                    HStack {
+                        Spacer()
+                        Button("Skip") {
+                            completeOnboarding()
+                        }
+                        .font(SSTypography.caption)
+                        .foregroundStyle(SSColors.textTertiary)
+                        .padding(.trailing, SSSpacing.lg)
+                        .padding(.top, SSSpacing.xs)
+                    }
+
+                    Spacer()
+
+                    VStack(spacing: SSSpacing.md) {
+                        OnboardingProgressBar(currentPage: currentPage, totalPages: totalPages)
+
+                        if currentPage < totalPages - 1 {
+                            SSButton("Continue", variant: .secondary) {
+                                withAnimation(SSAnimation.spring) {
+                                    currentPage += 1
+                                }
+                                SSHaptics.selection()
+                            }
+                        } else {
+                            SSButton("Get Started", icon: "arrow.right", variant: .primary) {
+                                completeOnboarding()
                             }
                         }
                     }
-
-                    Button("Skip") {
-                        hasSeenOnboarding = true
-                    }
-                    .foregroundStyle(SSColors.textTertiary)
-                    .font(SSTypography.subheadline)
+                    .padding(.horizontal, SSSpacing.lg)
+                    .padding(.bottom, SSSpacing.xl)
                 }
-                .padding(.horizontal, SSSpacing.lg)
-                .padding(.bottom, SSSpacing.xl)
             }
         }
+        .fullScreenCover(isPresented: $showPaywall) {
+            ProUpgradeView()
+                .onDisappear {
+                    hasSeenOnboarding = true
+                }
+        }
     }
-}
 
-private struct OnboardingPage {
-    let icon: String
-    let title: String
-    let subtitle: String
+    @ViewBuilder
+    private func pageView(for index: Int) -> some View {
+        switch index {
+        case 0: OnboardingProblemPage(isActive: currentPage == 0)
+        case 1: OnboardingTeleprompterPage(isActive: currentPage == 1)
+        case 2: OnboardingSpeechFollowPage(isActive: currentPage == 2)
+        case 3: OnboardingRecordPage(isActive: currentPage == 3)
+        case 4: OnboardingReadyPage(isActive: currentPage == 4)
+        default: EmptyView()
+        }
+    }
+
+    private func completeOnboarding() {
+        if StoreManager.shared.isProUser {
+            hasSeenOnboarding = true
+        } else {
+            showPaywall = true
+        }
+    }
 }

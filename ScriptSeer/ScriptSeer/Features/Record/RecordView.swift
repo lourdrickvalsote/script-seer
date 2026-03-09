@@ -2,10 +2,21 @@ import SwiftUI
 import SwiftData
 
 struct RecordView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Script.updatedAt, order: .reverse) private var scripts: [Script]
     @State private var selectedScript: Script?
     @State private var newScript: Script?
+    @State private var searchText = ""
+
+    private var filteredScripts: [Script] {
+        if searchText.isEmpty { return Array(scripts) }
+        let query = searchText.lowercased()
+        return scripts.filter {
+            $0.title.lowercased().contains(query) ||
+            $0.content.lowercased().contains(query)
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -16,53 +27,70 @@ struct RecordView: View {
                         SSEmptyState(
                             icon: "video.badge.waveform",
                             title: "Camera Recording",
-                            subtitle: "Create a script first, then come back to record with it.",
-                            actionTitle: "Create Script"
-                        ) {
+                            subtitle: "Create a script first, then come back to record with it."
+                        )
+                        .padding(.horizontal, SSSpacing.md)
+                        Spacer()
+                        Spacer()
+                        SSButton("Create Script", icon: "plus", variant: .primary) {
                             let script = Script(title: "Untitled Script", content: "")
                             modelContext.insert(script)
                             newScript = script
                             SSHaptics.light()
                         }
-                        Spacer()
+                        .padding(.horizontal, SSSpacing.md)
+                        .padding(.bottom, SSSpacing.lg)
                     }
                 } else {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: SSSpacing.lg) {
-                            SSSectionHeader("Select a Script to Record")
+                        VStack(alignment: .leading, spacing: SSSpacing.md) {
+                            SSSearchBar(text: $searchText, placeholder: "Search scripts")
 
-                            ForEach(scripts) { script in
-                                Button(action: {
-                                    selectedScript = script
-                                    SSHaptics.light()
-                                }) {
-                                    SSCard {
-                                        HStack {
-                                            VStack(alignment: .leading, spacing: SSSpacing.xxs) {
-                                                Text(script.title)
-                                                    .font(SSTypography.headline)
-                                                    .foregroundStyle(SSColors.textPrimary)
-                                                    .lineLimit(1)
-                                                Text("\(script.wordCount) words · \(script.formattedDuration)")
-                                                    .font(SSTypography.caption)
-                                                    .foregroundStyle(SSColors.textTertiary)
-                                            }
-                                            Spacer()
-                                            Image(systemName: "video.fill")
-                                                .foregroundStyle(SSColors.accent)
-                                        }
-                                    }
+                            if filteredScripts.isEmpty {
+                                VStack(spacing: SSSpacing.md) {
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.system(size: 36, weight: .light))
+                                        .foregroundStyle(SSColors.textTertiary)
+                                    Text("No results for \"\(searchText)\"")
+                                        .font(SSTypography.subheadline)
+                                        .foregroundStyle(SSColors.textSecondary)
                                 }
-                                .buttonStyle(.plain)
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, SSSpacing.xxl)
+                            } else {
+                                ForEach(filteredScripts) { script in
+                                    Button {
+                                        selectedScript = script
+                                        SSHaptics.light()
+                                    } label: {
+                                        ScriptSelectCard(
+                                            script: script,
+                                            icon: "video.fill"
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
                         .padding(.horizontal, SSSpacing.md)
-                        .padding(.top, SSSpacing.sm)
+                        .padding(.top, SSSpacing.xs)
                     }
                 }
             }
             .background(SSColors.background)
             .navigationTitle("Record")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(SSColors.textSecondary)
+                    }
+                }
+            }
             .navigationDestination(item: $selectedScript) { script in
                 CameraRecordView(script: script)
             }

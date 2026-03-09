@@ -3,31 +3,31 @@ import SwiftUI
 enum SSColors {
     // MARK: - Brand Palette
 
-    /// #0c120c — Near-black forest green
-    static let darkForest = Color(red: 12/255, green: 18/255, blue: 12/255)
-    /// #c20114 — Bold crimson red
-    static let crimson = Color(red: 194/255, green: 1/255, blue: 20/255)
-    /// #6d7275 — Medium slate gray
-    static let slate = Color(red: 109/255, green: 114/255, blue: 117/255)
-    /// #c7d6d5 — Cool silver sage
-    static let silverSage = Color(red: 199/255, green: 214/255, blue: 213/255)
-    /// #ecebf3 — Soft lavender mist
-    static let lavenderMist = Color(red: 236/255, green: 235/255, blue: 243/255)
+    /// #1A1A1A — Warm charcoal
+    static let darkForest = Color(red: 26/255, green: 26/255, blue: 26/255)
+    /// #B5202A — Deep garnet
+    static let crimson = Color(red: 181/255, green: 32/255, blue: 42/255)
+    /// #7A7F84 — Warm slate gray
+    static let slate = Color(red: 122/255, green: 127/255, blue: 132/255)
+    /// #C4C9CE — Warm silver gray
+    static let silverSage = Color(red: 196/255, green: 201/255, blue: 206/255)
+    /// #F5F3EF — Warm cream
+    static let lavenderMist = Color(red: 245/255, green: 243/255, blue: 239/255)
 
     // MARK: - Semantic Tokens (Adaptive)
 
     // Backgrounds
     static let background = Color(
         light: lavenderMist,
-        dark: darkForest
+        dark: Color(red: 22/255, green: 22/255, blue: 22/255)
     )
     static let surface = Color(
         light: .white,
-        dark: Color(red: 20/255, green: 26/255, blue: 20/255)
+        dark: Color(red: 30/255, green: 30/255, blue: 30/255)
     )
     static let surfaceElevated = Color(
         light: .white,
-        dark: Color(red: 28/255, green: 34/255, blue: 28/255)
+        dark: Color(red: 38/255, green: 38/255, blue: 38/255)
     )
     static let surfaceGlass = Color(
         light: slate.opacity(0.08),
@@ -51,11 +51,16 @@ enum SSColors {
     // Accent
     static let accent = Color(
         light: crimson,
-        dark: Color(red: 220/255, green: 40/255, blue: 55/255)
+        dark: Color(red: 218/255, green: 68/255, blue: 78/255)
     )
     static let accentSubtle = Color(
         light: crimson.opacity(0.12),
         dark: crimson.opacity(0.15)
+    )
+    /// Warm accent tint for icon backgrounds
+    static let accentWarm = Color(
+        light: crimson.opacity(0.10),
+        dark: Color(red: 218/255, green: 68/255, blue: 78/255).opacity(0.15)
     )
 
     // Recording (uses brand crimson)
@@ -67,12 +72,12 @@ enum SSColors {
 
     // Structural
     static let divider = Color(
-        light: slate.opacity(0.15),
-        dark: silverSage.opacity(0.08)
+        light: darkForest.opacity(0.08),
+        dark: Color.white.opacity(0.06)
     )
     static let shadow = Color(
-        light: darkForest.opacity(0.20),
-        dark: darkForest.opacity(0.40)
+        light: Color(red: 26/255, green: 26/255, blue: 26/255).opacity(0.12),
+        dark: Color.black.opacity(0.50)
     )
 }
 

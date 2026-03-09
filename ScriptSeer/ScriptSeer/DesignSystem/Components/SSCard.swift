@@ -14,9 +14,6 @@ struct SSCard<Content: View>: View {
                 RoundedRectangle(cornerRadius: SSRadius.lg)
                     .fill(SSColors.surfaceElevated)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: SSRadius.lg)
-                    .stroke(SSColors.divider, lineWidth: 0.5)
-            )
+            .shadow(color: SSColors.shadow, radius: 8, x: 0, y: 2)
     }
 }

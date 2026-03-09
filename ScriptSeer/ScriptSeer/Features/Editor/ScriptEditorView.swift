@@ -12,6 +12,8 @@ struct ScriptEditorView: View {
     @State private var showVariantBrowser = false
     @State private var showReflowConfirm = false
     @State private var showRevisionHistory = false
+    @State private var showRenameAlert = false
+    @State private var renameText = ""
     @FocusState private var editorFocused: Bool
     @State private var initialWordCount: Int = 0
 
@@ -46,33 +48,50 @@ struct ScriptEditorView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button(action: { showVariantSheet = true }) {
-                        Label("Duplicate as Variant", systemImage: "doc.on.doc")
-                    }
-                    Button(action: { showAIActions = true }) {
-                        Label("AI Actions", systemImage: "wand.and.stars")
-                    }
-                    Button(action: { showVariantBrowser = true }) {
-                        Label("View Variants", systemImage: "list.bullet.rectangle")
-                    }
-                    Divider()
-                    Button(action: { showReflowConfirm = true }) {
-                        Label("Reflow for Prompter", systemImage: "text.line.first.and.arrowtriangle.forward")
-                    }
-                    Button(action: { showRevisionHistory = true }) {
-                        Label("Version History", systemImage: "clock.arrow.circlepath")
-                    }
-                    Divider()
-                    Button(action: { showFormattingBar.toggle() }) {
-                        Label(
-                            showFormattingBar ? "Hide Toolbar" : "Show Toolbar",
-                            systemImage: "keyboard.chevron.compact.down"
-                        )
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
+                HStack(spacing: SSSpacing.sm) {
+                    if editorFocused {
+                        Button("Done") {
+                            editorFocused = false
+                            SSHaptics.light()
+                        }
+                        .font(SSTypography.callout.weight(.semibold))
                         .foregroundStyle(SSColors.accent)
+                    }
+                    Menu {
+                        Button(action: {
+                            renameText = script.title
+                            showRenameAlert = true
+                        }) {
+                            Label("Rename Script", systemImage: "pencil")
+                        }
+                        Divider()
+                        Button(action: { showVariantSheet = true }) {
+                            Label("Duplicate as Variant", systemImage: "doc.on.doc")
+                        }
+                        Button(action: { showAIActions = true }) {
+                            Label("AI Actions", systemImage: "wand.and.stars")
+                        }
+                        Button(action: { showVariantBrowser = true }) {
+                            Label("View Variants", systemImage: "list.bullet.rectangle")
+                        }
+                        Divider()
+                        Button(action: { showReflowConfirm = true }) {
+                            Label("Reflow for Prompter", systemImage: "text.line.first.and.arrowtriangle.forward")
+                        }
+                        Button(action: { showRevisionHistory = true }) {
+                            Label("Version History", systemImage: "clock.arrow.circlepath")
+                        }
+                        Divider()
+                        Button(action: { showFormattingBar.toggle() }) {
+                            Label(
+                                showFormattingBar ? "Hide Toolbar" : "Show Toolbar",
+                                systemImage: "keyboard.chevron.compact.down"
+                            )
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundStyle(SSColors.accent)
+                    }
                 }
             }
         }
@@ -102,6 +121,17 @@ struct ScriptEditorView: View {
         } message: {
             let preview = ReadabilityEngine.previewReflow(script.content)
             Text("Reformat text into ~\(preview.lineCount) lines optimized for teleprompter reading. This modifies the script content.")
+        }
+        .alert("Rename Script", isPresented: $showRenameAlert) {
+            TextField("Script title", text: $renameText)
+            Button("Save") {
+                let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    script.title = trimmed
+                    SSHaptics.success()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
         }
         .onAppear {
             editorFocused = true

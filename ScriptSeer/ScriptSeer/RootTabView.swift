@@ -1,24 +1,62 @@
 import SwiftUI
 
+// MARK: - Hide Record Button Preference
+
+struct HideRecordButtonKey: PreferenceKey {
+    static var defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
 struct RootTabView: View {
     @State private var selectedTab: AppTab = .home
+    @State private var showRecordView = false
+    @State private var hideRecordButton = false
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: Binding(
+            get: { selectedTab },
+            set: { newTab in
+                if newTab != .record {
+                    selectedTab = newTab
+                }
+            }
+        )) {
             ForEach(AppTab.allCases) { tab in
                 tab.destination
                     .tabItem {
-                        Label(tab.title, systemImage: tab.icon)
+                        if tab == .record {
+                            Label(horizontalSizeClass == .compact ? "" : "              ", systemImage: "")
+                        } else {
+                            Label(tab.title, systemImage: tab.icon)
+                        }
                     }
                     .tag(tab)
             }
         }
         .tint(SSColors.accent)
+        .ignoresSafeArea(.keyboard)
+        .overlay(alignment: horizontalSizeClass == .compact ? .bottom : .top) {
+            if !hideRecordButton {
+                RecordActionButton {
+                    showRecordView = true
+                }
+                .offset(y: horizontalSizeClass == .compact ? 20 : -14)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .onPreferenceChange(HideRecordButtonKey.self) { hidden in
+            withAnimation(SSAnimation.standard) {
+                hideRecordButton = hidden
+            }
+        }
         .onAppear {
             configureTabBarAppearance()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .switchToRecordTab)) { _ in
-            selectedTab = .record
+        .fullScreenCover(isPresented: $showRecordView) {
+            RecordView()
         }
     }
 
@@ -26,6 +64,8 @@ struct RootTabView: View {
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor(SSColors.surface)
+
+        appearance.shadowColor = UIColor(SSColors.divider)
 
         let normal = appearance.stackedLayoutAppearance.normal
         normal.iconColor = UIColor(SSColors.textTertiary)
@@ -41,16 +81,14 @@ struct RootTabView: View {
 }
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case home, scripts, record, practice, settings
+    case home, record, settings
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .home: "Home"
-        case .scripts: "Scripts"
-        case .record: "Record"
-        case .practice: "Practice"
+        case .record: ""
         case .settings: "Settings"
         }
     }
@@ -58,9 +96,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .home: "house.fill"
-        case .scripts: "doc.text.fill"
-        case .record: "video.fill"
-        case .practice: "mic.fill"
+        case .record: ""
         case .settings: "gearshape.fill"
         }
     }
@@ -69,9 +105,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     var destination: some View {
         switch self {
         case .home: HomeView()
-        case .scripts: ScriptsView()
-        case .record: RecordView()
-        case .practice: PracticeView()
+        case .record: Color.clear
         case .settings: SettingsView()
         }
     }

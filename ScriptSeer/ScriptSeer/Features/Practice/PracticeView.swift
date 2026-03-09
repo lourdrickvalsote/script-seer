@@ -6,69 +6,83 @@ struct PracticeView: View {
     @Query(sort: \Script.updatedAt, order: .reverse) private var scripts: [Script]
     @State private var selectedScript: Script?
     @State private var newScript: Script?
+    @State private var searchText = ""
+
+    private var filteredScripts: [Script] {
+        if searchText.isEmpty { return Array(scripts) }
+        let query = searchText.lowercased()
+        return scripts.filter {
+            $0.title.lowercased().contains(query) ||
+            $0.content.lowercased().contains(query)
+        }
+    }
 
     var body: some View {
-        NavigationStack {
-            Group {
+        Group {
                 if scripts.isEmpty {
                     VStack {
                         Spacer()
                         SSEmptyState(
                             icon: "mic.badge.xmark",
                             title: "Practice Mode",
-                            subtitle: "Create a script first, then come back to rehearse.",
-                            actionTitle: "Create Script"
-                        ) {
+                            subtitle: "Create a script first, then come back to rehearse."
+                        )
+                        .padding(.horizontal, SSSpacing.md)
+                        Spacer()
+                        Spacer()
+                        SSButton("Create Script", icon: "plus", variant: .primary) {
                             let script = Script(title: "Untitled Script", content: "")
                             modelContext.insert(script)
                             newScript = script
                             SSHaptics.light()
                         }
-                        Spacer()
+                        .padding(.horizontal, SSSpacing.md)
+                        .padding(.bottom, SSSpacing.lg)
                     }
                 } else {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: SSSpacing.lg) {
-                            SSSectionHeader("Select a Script to Practice")
+                        VStack(alignment: .leading, spacing: SSSpacing.md) {
+                            SSSearchBar(text: $searchText, placeholder: "Search scripts")
 
-                            ForEach(scripts) { script in
-                                Button(action: {
-                                    selectedScript = script
-                                    SSHaptics.light()
-                                }) {
-                                    SSCard {
-                                        HStack {
-                                            VStack(alignment: .leading, spacing: SSSpacing.xxs) {
-                                                Text(script.title)
-                                                    .font(SSTypography.headline)
-                                                    .foregroundStyle(SSColors.textPrimary)
-                                                    .lineLimit(1)
-                                                Text("\(script.wordCount) words · \(script.formattedDuration)")
-                                                    .font(SSTypography.caption)
-                                                    .foregroundStyle(SSColors.textTertiary)
-                                            }
-                                            Spacer()
-                                            Image(systemName: "mic.fill")
-                                                .foregroundStyle(SSColors.accent)
-                                        }
-                                    }
+                            if filteredScripts.isEmpty {
+                                VStack(spacing: SSSpacing.md) {
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.system(size: 36, weight: .light))
+                                        .foregroundStyle(SSColors.textTertiary)
+                                    Text("No results for \"\(searchText)\"")
+                                        .font(SSTypography.subheadline)
+                                        .foregroundStyle(SSColors.textSecondary)
                                 }
-                                .buttonStyle(.plain)
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, SSSpacing.xxl)
+                            } else {
+                                ForEach(filteredScripts) { script in
+                                    Button {
+                                        selectedScript = script
+                                        SSHaptics.light()
+                                    } label: {
+                                        ScriptSelectCard(
+                                            script: script,
+                                            icon: "mic.fill"
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
                         .padding(.horizontal, SSSpacing.md)
-                        .padding(.top, SSSpacing.sm)
+                        .padding(.top, SSSpacing.xs)
                     }
                 }
             }
             .background(SSColors.background)
             .navigationTitle("Practice")
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(item: $selectedScript) { script in
                 PracticeSessionView(script: script)
             }
             .navigationDestination(item: $newScript) { script in
                 ScriptEditorView(script: script)
             }
-        }
     }
 }

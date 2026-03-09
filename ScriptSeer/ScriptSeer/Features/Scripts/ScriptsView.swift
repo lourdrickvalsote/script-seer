@@ -25,6 +25,7 @@ struct ScriptsView: View {
     @State private var showDeleteFolderConfirmation = false
     @State private var folderToDelete: ScriptFolder?
     @State private var newScript: Script?
+    @State private var selectedScript: Script?
 
     private var filteredScripts: [Script] {
         var filtered: [Script]
@@ -51,26 +52,56 @@ struct ScriptsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
+        Group {
                 if scripts.isEmpty {
-                    ScrollView {
+                    VStack {
+                        Spacer()
                         SSEmptyState(
                             icon: "doc.text.magnifyingglass",
                             title: "Your Script Library",
-                            subtitle: "Scripts you create or import will appear here.",
-                            actionTitle: "Create Script"
-                        ) {
+                            subtitle: "Scripts you create or import will appear here."
+                        )
+                        .padding(.horizontal, SSSpacing.md)
+                        Spacer()
+                        Spacer()
+                        SSButton("Create Script", icon: "plus", variant: .primary) {
                             createNewScript()
                         }
-                        .padding(.top, SSSpacing.xxl)
+                        .padding(.horizontal, SSSpacing.md)
+                        .padding(.bottom, SSSpacing.lg)
                     }
                 } else {
                     VStack(spacing: 0) {
-                        // Folder filter bar
-                        if !folders.isEmpty {
-                            folderFilterBar
+                        // Search + sort bar
+                        VStack(spacing: SSSpacing.xs) {
+                            HStack(spacing: SSSpacing.xs) {
+                                SSSearchBar(text: $searchText, placeholder: "Search scripts")
+
+                                Menu {
+                                    Picker("Sort", selection: $sortOrder) {
+                                        ForEach(ScriptSortOrder.allCases, id: \.self) { order in
+                                            Text(order.rawValue).tag(order)
+                                        }
+                                    }
+                                } label: {
+                                    Image(systemName: "arrow.up.arrow.down")
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundStyle(SSColors.accent)
+                                        .frame(width: 40, height: 40)
+                                        .background(SSColors.surfaceElevated)
+                                        .clipShape(RoundedRectangle(cornerRadius: SSRadius.md))
+                                        .shadow(color: SSColors.shadow, radius: 4, x: 0, y: 1)
+                                }
+                            }
+
+                            // Folder filter chips
+                            if !folders.isEmpty {
+                                folderFilterBar
+                            }
                         }
+                        .padding(.horizontal, SSSpacing.md)
+                        .padding(.top, SSSpacing.xs)
+                        .padding(.bottom, SSSpacing.xs)
 
                         if filteredScripts.isEmpty && !searchText.isEmpty {
                             VStack(spacing: SSSpacing.md) {
@@ -91,7 +122,7 @@ struct ScriptsView: View {
                                 Text("No scripts in this folder")
                                     .font(SSTypography.subheadline)
                                     .foregroundStyle(SSColors.textSecondary)
-                                Text("Swipe left on a script to move it here.")
+                                Text("Swipe right on a script to move it here.")
                                     .font(SSTypography.caption)
                                     .foregroundStyle(SSColors.textTertiary)
                             }
@@ -100,10 +131,23 @@ struct ScriptsView: View {
                         } else {
                             List {
                                 ForEach(filteredScripts) { script in
-                                    NavigationLink(destination: ScriptDetailView(script: script)) {
-                                        ScriptRowView(script: script)
+                                    Button {
+                                        selectedScript = script
+                                    } label: {
+                                        ScriptSelectCard(
+                                            script: script,
+                                            icon: "doc.text.fill"
+                                        )
                                     }
-                                    .listRowBackground(SSColors.surfaceElevated)
+                                    .buttonStyle(.plain)
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                    .listRowInsets(EdgeInsets(
+                                        top: SSSpacing.xs,
+                                        leading: SSSpacing.md,
+                                        bottom: SSSpacing.xs,
+                                        trailing: SSSpacing.md
+                                    ))
                                     .swipeActions(edge: .trailing) {
                                         Button(role: .destructive) {
                                             scriptToDelete = script
@@ -138,7 +182,7 @@ struct ScriptsView: View {
             }
             .background(SSColors.background)
             .navigationTitle("Scripts")
-            .searchable(text: $searchText, prompt: "Search scripts")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
@@ -161,18 +205,6 @@ struct ScriptsView: View {
                         #endif
                     } label: {
                         Image(systemName: "plus")
-                            .foregroundStyle(SSColors.accent)
-                    }
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        Picker("Sort", selection: $sortOrder) {
-                            ForEach(ScriptSortOrder.allCases, id: \.self) { order in
-                                Text(order.rawValue).tag(order)
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down")
                             .foregroundStyle(SSColors.accent)
                     }
                 }
@@ -230,10 +262,12 @@ struct ScriptsView: View {
                 )
                 .presentationDetents([.medium])
             }
+            .navigationDestination(item: $selectedScript) { script in
+                ScriptDetailView(script: script)
+            }
             .navigationDestination(item: $newScript) { script in
                 ScriptEditorView(script: script)
             }
-        }
     }
 
     // MARK: - Folder Filter Bar
@@ -270,10 +304,7 @@ struct ScriptsView: View {
                     }
                 }
             }
-            .padding(.horizontal, SSSpacing.md)
-            .padding(.vertical, SSSpacing.xs)
         }
-        .background(SSColors.surface)
     }
 
     // MARK: - Actions
@@ -315,7 +346,6 @@ struct ScriptsView: View {
     }
 
     private func deleteFolder(_ folder: ScriptFolder) {
-        // Move scripts out of the folder before deleting
         for script in folder.scripts {
             script.folder = nil
         }
@@ -353,16 +383,17 @@ private struct FolderChip: View {
                 if let count {
                     Text("\(count)")
                         .font(SSTypography.caption)
-                        .foregroundStyle(isSelected ? SSColors.lavenderMist.opacity(0.7) : SSColors.textTertiary)
+                        .foregroundStyle(isSelected ? Color.white.opacity(0.7) : SSColors.textTertiary)
                 }
             }
-            .foregroundStyle(isSelected ? SSColors.lavenderMist : SSColors.textSecondary)
+            .foregroundStyle(isSelected ? .white : SSColors.textSecondary)
             .padding(.horizontal, SSSpacing.sm)
             .padding(.vertical, SSSpacing.xxs)
             .background(
                 RoundedRectangle(cornerRadius: SSRadius.full)
-                    .fill(isSelected ? SSColors.accent : SSColors.surfaceGlass)
+                    .fill(isSelected ? SSColors.accent : SSColors.surfaceElevated)
             )
+            .shadow(color: isSelected ? .clear : SSColors.shadow, radius: 3, x: 0, y: 1)
         }
         .buttonStyle(.plain)
     }

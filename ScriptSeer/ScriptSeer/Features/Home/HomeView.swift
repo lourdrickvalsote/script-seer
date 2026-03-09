@@ -5,7 +5,6 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Script.updatedAt, order: .reverse) private var scripts: [Script]
     @State private var showFilePicker = false
-    @State private var showQuickPrompt = false
     @State private var importError: String?
     @State private var showImportError = false
     @State private var newScript: Script?
@@ -18,14 +17,26 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: SSSpacing.lg) {
+                    // Branded header matching splash
+                    HStack(spacing: 0) {
+                        Text("Script")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundStyle(SSColors.textSecondary)
+                        Text("Seer")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundStyle(SSColors.accent)
+                    }
+                    .padding(.top, SSSpacing.xs)
+
+                    // Quick Actions
                     SSSectionHeader("Quick Actions")
 
                     LazyVGrid(
                         columns: [
-                            GridItem(.flexible(), spacing: SSSpacing.sm),
-                            GridItem(.flexible(), spacing: SSSpacing.sm)
+                            GridItem(.flexible(), spacing: SSSpacing.xs),
+                            GridItem(.flexible(), spacing: SSSpacing.xs)
                         ],
-                        spacing: SSSpacing.sm
+                        spacing: SSSpacing.xs
                     ) {
                         QuickActionCard(icon: "plus", title: "New Script", subtitle: "Start writing") {
                             createNewScript()
@@ -33,26 +44,33 @@ struct HomeView: View {
                         QuickActionCard(icon: "doc.badge.arrow.up", title: "Import", subtitle: "From file") {
                             showFilePicker = true
                         }
-                        QuickActionCard(icon: "play.fill", title: "Quick Prompt", subtitle: "Paste & go") {
-                            showQuickPrompt = true
+                        NavigationLink(destination: ScriptsView()) {
+                            QuickActionCardLabel(icon: "doc.text.fill", title: "Scripts", subtitle: "Your library")
                         }
-                        QuickActionCard(icon: "video.fill", title: "Record", subtitle: "Camera mode") {
-                            // Navigate to Record tab via notification
-                            NotificationCenter.default.post(name: .switchToRecordTab, object: nil)
+                        .buttonStyle(.plain)
+                        NavigationLink(destination: PracticeView()) {
+                            QuickActionCardLabel(icon: "mic.fill", title: "Practice", subtitle: "Rehearse")
                         }
+                        .buttonStyle(.plain)
                     }
 
                     // Recent Scripts
                     if recentScripts.isEmpty {
                         SSSectionHeader("Recent Scripts")
-                        SSEmptyState(
-                            icon: "doc.text",
-                            title: "No Scripts Yet",
-                            subtitle: "Create your first script to start prompting like a pro.",
-                            actionTitle: "Create Script"
-                        ) {
-                            createNewScript()
+                        VStack {
+                            Spacer().frame(minHeight: SSSpacing.lg)
+                            SSEmptyState(
+                                icon: "doc.text",
+                                title: "No Scripts Yet",
+                                subtitle: "Create your first script to start prompting like a pro."
+                            )
+                            Spacer().frame(minHeight: SSSpacing.xxl)
+                            SSButton("Create Script", icon: "plus", variant: .primary) {
+                                createNewScript()
+                            }
+                            .padding(.bottom, SSSpacing.md)
                         }
+                        .frame(minHeight: 300)
                     } else {
                         SSSectionHeader("Recent Scripts")
                         VStack(spacing: SSSpacing.sm) {
@@ -66,14 +84,11 @@ struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, SSSpacing.md)
-                .padding(.top, SSSpacing.sm)
+                .padding(.top, SSSpacing.xs)
             }
             .background(SSColors.background)
-            .navigationTitle("ScriptSeer")
-            .sheet(isPresented: $showQuickPrompt) {
-                QuickPromptSheet()
-                    .presentationDetents([.large])
-            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
             .fileImporter(
                 isPresented: $showFilePicker,
                 allowedContentTypes: ImportService.supportedTypes,
@@ -117,10 +132,6 @@ struct HomeView: View {
     }
 }
 
-extension Notification.Name {
-    static let switchToRecordTab = Notification.Name("switchToRecordTab")
-}
-
 private struct QuickActionCard: View {
     let icon: String
     let title: String
@@ -132,13 +143,17 @@ private struct QuickActionCard: View {
             SSGlassPanel {
                 VStack(alignment: .leading, spacing: SSSpacing.xs) {
                     Image(systemName: icon)
-                        .font(.system(size: 22, weight: .medium))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(SSColors.accent)
+                        .frame(width: 40, height: 40)
+                        .background(SSColors.accentWarm)
+                        .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
 
-                    Spacer().frame(height: SSSpacing.xs)
+                    Spacer().frame(height: SSSpacing.xxs)
 
                     Text(title)
                         .font(SSTypography.headline)
+                        .fontWeight(.bold)
                         .foregroundStyle(SSColors.textPrimary)
 
                     Text(subtitle)
@@ -153,6 +168,38 @@ private struct QuickActionCard: View {
     }
 }
 
+private struct QuickActionCardLabel: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        SSGlassPanel {
+            VStack(alignment: .leading, spacing: SSSpacing.xs) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(SSColors.accent)
+                    .frame(width: 40, height: 40)
+                    .background(SSColors.accentWarm)
+                    .clipShape(RoundedRectangle(cornerRadius: SSRadius.sm))
+
+                Spacer().frame(height: SSSpacing.xxs)
+
+                Text(title)
+                    .font(SSTypography.headline)
+                    .fontWeight(.bold)
+                    .foregroundStyle(SSColors.textPrimary)
+
+                Text(subtitle)
+                    .font(SSTypography.caption)
+                    .foregroundStyle(SSColors.textTertiary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, SSSpacing.xs)
+        }
+    }
+}
+
 private struct RecentScriptCard: View {
     let script: Script
 
@@ -162,6 +209,7 @@ private struct RecentScriptCard: View {
                 VStack(alignment: .leading, spacing: SSSpacing.xxs) {
                     Text(script.title)
                         .font(SSTypography.headline)
+                        .fontWeight(.bold)
                         .foregroundStyle(SSColors.textPrimary)
                         .lineLimit(1)
 

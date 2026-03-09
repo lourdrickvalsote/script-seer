@@ -1,10 +1,10 @@
 import SwiftUI
 
 enum SSTypography {
-    // Scalable fonts that respect Dynamic Type
-    static let largeTitle = Font.system(.largeTitle, weight: .bold)
-    static let title = Font.system(.title2, weight: .semibold)
-    static let title2 = Font.system(.title3, weight: .semibold)
+    // Rounded titles for warmth
+    static let largeTitle = Font.system(.largeTitle, design: .rounded, weight: .bold)
+    static let title = Font.system(.title2, design: .rounded, weight: .bold)
+    static let title2 = Font.system(.title3, design: .rounded, weight: .semibold)
     static let headline = Font.system(.headline, weight: .semibold)
     static let body = Font.system(.body, weight: .regular)
     static let callout = Font.system(.callout, weight: .regular)

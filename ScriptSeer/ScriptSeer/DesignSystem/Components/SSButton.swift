@@ -40,7 +40,7 @@ struct SSButton: View {
             }
             .foregroundStyle(foregroundColor)
             .padding(.horizontal, SSSpacing.lg)
-            .padding(.vertical, SSSpacing.sm)
+            .padding(.vertical, variant == .ghost ? SSSpacing.sm : 14)
             .frame(maxWidth: variant == .ghost ? nil : .infinity)
             .background(backgroundView)
         }
@@ -50,7 +50,7 @@ struct SSButton: View {
 
     private var foregroundColor: Color {
         switch variant {
-        case .primary: SSColors.lavenderMist
+        case .primary: .white
         case .secondary: SSColors.accent
         case .ghost: SSColors.textSecondary
         case .destructive: SSColors.recordingRed
@@ -63,6 +63,7 @@ struct SSButton: View {
         case .primary:
             RoundedRectangle(cornerRadius: SSRadius.md)
                 .fill(SSColors.accent)
+                .shadow(color: SSColors.accent.opacity(0.30), radius: 8, x: 0, y: 3)
         case .secondary:
             RoundedRectangle(cornerRadius: SSRadius.md)
                 .fill(SSColors.accentSubtle)

@@ -4,6 +4,7 @@ import SwiftData
 @main
 struct ScriptSeerApp: App {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+    @State private var showSplash = true
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema(versionedSchema: SchemaV1.self)
@@ -28,14 +29,25 @@ struct ScriptSeerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if hasSeenOnboarding {
-                    RootTabView()
-                } else {
-                    OnboardingView()
+            ZStack {
+                Group {
+                    if hasSeenOnboarding {
+                        RootTabView()
+                    } else {
+                        OnboardingView()
+                    }
+                }
+                .animation(.easeInOut(duration: 0.5), value: hasSeenOnboarding)
+
+                if showSplash {
+                    SplashView {
+                        withAnimation {
+                            showSplash = false
+                        }
+                    }
+                    .transition(.opacity)
                 }
             }
-            .animation(.easeInOut(duration: 0.5), value: hasSeenOnboarding)
         }
         .modelContainer(sharedModelContainer)
     }

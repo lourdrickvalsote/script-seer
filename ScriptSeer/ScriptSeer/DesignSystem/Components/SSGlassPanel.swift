@@ -12,15 +12,8 @@ struct SSGlassPanel<Content: View>: View {
             .padding(SSSpacing.md)
             .background(
                 RoundedRectangle(cornerRadius: SSRadius.lg)
-                    .fill(SSColors.surfaceGlass)
-                    .background(
-                        RoundedRectangle(cornerRadius: SSRadius.lg)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: SSRadius.lg)
-                            .stroke(SSColors.divider, lineWidth: 0.5)
-                    )
+                    .fill(SSColors.surfaceElevated)
             )
+            .shadow(color: SSColors.shadow, radius: 6, x: 0, y: 2)
     }
 }
