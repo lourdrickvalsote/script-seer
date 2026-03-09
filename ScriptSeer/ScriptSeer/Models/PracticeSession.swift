@@ -7,15 +7,33 @@ final class PracticeSession {
     var stumbles: [StumbleMarker] = []
     var isActive: Bool = false
     var currentLineIndex: Int = 0
+    var usedSpeechFollow: Bool = false
 
     let script: Script
     let lines: [String]
+
+    // Cumulative word counts for mapping word index → line index
+    let lineWordRanges: [(start: Int, end: Int)]
+
+    var totalWordCount: Int {
+        lineWordRanges.last?.end ?? 0
+    }
 
     init(script: Script) {
         self.script = script
         self.lines = script.content
             .components(separatedBy: .newlines)
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+
+        // Build cumulative word ranges per line
+        var ranges: [(start: Int, end: Int)] = []
+        var cumulative = 0
+        for line in self.lines {
+            let wordCount = line.split(separator: " ").count
+            ranges.append((start: cumulative, end: cumulative + wordCount))
+            cumulative += wordCount
+        }
+        self.lineWordRanges = ranges
     }
 
     var elapsedTime: TimeInterval {
@@ -69,7 +87,26 @@ final class PracticeSession {
         let marker = StumbleMarker(
             lineIndex: currentLineIndex,
             lineText: lines[currentLineIndex],
-            timestamp: Date()
+            timestamp: Date(),
+            isAutoDetected: false
+        )
+        stumbles.append(marker)
+    }
+
+    /// Auto-mark stumble with dedup (won't re-mark same line within 5 seconds)
+    func autoMarkStumble(atLine lineIndex: Int) {
+        guard lineIndex < lines.count else { return }
+        let now = Date()
+        let recentOnSameLine = stumbles.contains { marker in
+            marker.lineIndex == lineIndex && now.timeIntervalSince(marker.timestamp) < 5.0
+        }
+        guard !recentOnSameLine else { return }
+
+        let marker = StumbleMarker(
+            lineIndex: lineIndex,
+            lineText: lines[lineIndex],
+            timestamp: now,
+            isAutoDetected: true
         )
         stumbles.append(marker)
     }
@@ -84,6 +121,16 @@ final class PracticeSession {
         guard index >= 0, index < lines.count else { return }
         currentLineIndex = index
     }
+
+    /// Map a word index from SpeechFollowEngine to a line index
+    func lineIndex(forWordIndex wordIndex: Int) -> Int? {
+        for (i, range) in lineWordRanges.enumerated() {
+            if wordIndex >= range.start && wordIndex < range.end {
+                return i
+            }
+        }
+        return nil
+    }
 }
 
 struct StumbleMarker: Identifiable {
@@ -91,4 +138,5 @@ struct StumbleMarker: Identifiable {
     let lineIndex: Int
     let lineText: String
     let timestamp: Date
+    var isAutoDetected: Bool = false
 }

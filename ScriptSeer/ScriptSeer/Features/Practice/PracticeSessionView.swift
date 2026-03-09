@@ -5,6 +5,12 @@ struct PracticeSessionView: View {
     @State var practiceSession: PracticeSession
     @State private var timer: Timer?
     @State private var tick: Int = 0
+    @State private var speechEngine = SpeechFollowEngine()
+    @State private var useSpeechFollow = false
+    @State private var showSpeechPermissionDenied = false
+    @State private var lastWordIndex: Int = -1
+    @State private var stallTimer: Timer?
+    @State private var autoStumbleFlashLine: Int? = nil
 
     init(script: Script) {
         self._practiceSession = State(initialValue: PracticeSession(script: script))
@@ -25,7 +31,26 @@ struct PracticeSessionView: View {
         .preference(key: HideRecordButtonKey.self, value: true)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .onDisappear { stopTimer() }
+        .alert("Speech Recognition Unavailable", isPresented: $showSpeechPermissionDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("ScriptSeer needs speech recognition permission for Smart Follow. Please enable it in Settings.")
+        }
+        .onDisappear {
+            stopTimer()
+            stopSpeechFollow()
+        }
+        .onChange(of: speechEngine.currentWordIndex) { _, newWordIndex in
+            handleWordAdvance(newWordIndex)
+        }
+        .onChange(of: speechEngine.state) { oldState, newState in
+            handleSpeechStateChange(from: oldState, to: newState)
+        }
     }
 
     // MARK: - Ready View
@@ -60,6 +85,36 @@ struct PracticeSessionView: View {
                     .foregroundStyle(SSColors.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
+
+                // Smart Follow toggle
+                VStack(spacing: SSSpacing.xs) {
+                    Toggle(isOn: $useSpeechFollow) {
+                        HStack(spacing: SSSpacing.xs) {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 14))
+                                .foregroundStyle(SSColors.accent)
+                            Text("Smart Follow")
+                                .font(SSTypography.subheadline)
+                                .foregroundStyle(SSColors.textPrimary)
+                        }
+                    }
+                    .tint(SSColors.accent)
+
+                    if useSpeechFollow {
+                        Text("Uses your microphone to track progress\nand detect stumbles automatically.")
+                            .font(SSTypography.caption)
+                            .foregroundStyle(SSColors.textTertiary)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(2)
+                    }
+                }
+                .padding(.horizontal, SSSpacing.lg)
+                .padding(.vertical, SSSpacing.md)
+                .background(
+                    RoundedRectangle(cornerRadius: SSRadius.lg)
+                        .fill(SSColors.surfaceElevated)
+                )
+                .padding(.horizontal, SSSpacing.xl)
             }
 
             Spacer()
@@ -67,6 +122,10 @@ struct PracticeSessionView: View {
             VStack(spacing: SSSpacing.md) {
                 Button {
                     practiceSession.start()
+                    if useSpeechFollow {
+                        practiceSession.usedSpeechFollow = true
+                        startSpeechFollow()
+                    }
                     startTimer()
                     SSHaptics.medium()
                 } label: {
@@ -109,6 +168,12 @@ struct PracticeSessionView: View {
             // Stats bar
             practiceStatsBar
 
+            // Speech follow pill
+            if useSpeechFollow && speechEngine.state != .idle && speechEngine.state != .stopped {
+                SpeechFollowOverlay(engine: speechEngine)
+                    .padding(.top, SSSpacing.xs)
+            }
+
             // Script content
             ScrollViewReader { proxy in
                 ScrollView {
@@ -136,6 +201,7 @@ struct PracticeSessionView: View {
         let isCurrent = index == practiceSession.currentLineIndex
         let isPast = index < practiceSession.currentLineIndex
         let isStumbled = practiceSession.stumbles.contains { $0.lineIndex == index }
+        let isFlashing = autoStumbleFlashLine == index
 
         return HStack(alignment: .top, spacing: SSSpacing.sm) {
             // Line indicator
@@ -167,10 +233,12 @@ struct PracticeSessionView: View {
         .padding(.vertical, SSSpacing.xxs)
         .padding(.horizontal, SSSpacing.xs)
         .background(
-            isCurrent ?
-                RoundedRectangle(cornerRadius: SSRadius.sm)
-                    .fill(SSColors.accentSubtle.opacity(0.5)) :
-                nil
+            RoundedRectangle(cornerRadius: SSRadius.sm)
+                .fill(
+                    isFlashing ? SSColors.recordingRedSubtle :
+                    isCurrent ? SSColors.accentSubtle.opacity(0.5) :
+                    Color.clear
+                )
         )
         .id(index)
         .contentShape(Rectangle())
@@ -193,6 +261,14 @@ struct PracticeSessionView: View {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 12))
                     Text("\(practiceSession.stumbles.count)")
+                }
+
+                if useSpeechFollow && speechEngine.speakingWPM > 0 {
+                    HStack(spacing: SSSpacing.xxs) {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 12))
+                        Text("\(Int(speechEngine.speakingWPM)) wpm")
+                    }
                 }
             }
 
@@ -246,6 +322,7 @@ struct PracticeSessionView: View {
             Button {
                 practiceSession.finish()
                 stopTimer()
+                stopSpeechFollow()
                 SSHaptics.success()
             } label: {
                 Image(systemName: "checkmark")
@@ -278,7 +355,97 @@ struct PracticeSessionView: View {
 
     private func retryFromLine(_ index: Int) {
         practiceSession.startFrom(line: index)
+        if useSpeechFollow {
+            stopSpeechFollow()
+            startSpeechFollow()
+        }
         stopTimer()
         startTimer()
+    }
+
+    // MARK: - Speech Follow
+
+    private func startSpeechFollow() {
+        speechEngine.mode = .smart
+        speechEngine.prepare(scriptContent: practiceSession.script.content)
+        Task {
+            let authorized = await speechEngine.requestAuthorization()
+            if authorized {
+                speechEngine.start()
+                startStallDetection()
+            } else {
+                showSpeechPermissionDenied = true
+                useSpeechFollow = false
+            }
+        }
+    }
+
+    private func stopSpeechFollow() {
+        stallTimer?.invalidate()
+        stallTimer = nil
+        if speechEngine.state != .idle && speechEngine.state != .stopped {
+            speechEngine.stop()
+        }
+    }
+
+    private func handleWordAdvance(_ newWordIndex: Int) {
+        guard useSpeechFollow, practiceSession.isActive else { return }
+
+        // Map word index to line index and auto-advance
+        if let lineIdx = practiceSession.lineIndex(forWordIndex: newWordIndex),
+           lineIdx != practiceSession.currentLineIndex {
+            practiceSession.goToLine(lineIdx)
+        }
+
+        // Reset stall timer on word advance
+        lastWordIndex = newWordIndex
+        resetStallTimer()
+    }
+
+    private func handleSpeechStateChange(from oldState: SpeechFollowState, to newState: SpeechFollowState) {
+        guard useSpeechFollow, practiceSession.isActive else { return }
+
+        if newState == .lowConfidence && oldState == .following {
+            // Start a 2-second timer for low confidence stumble
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                if speechEngine.state == .lowConfidence {
+                    triggerAutoStumble()
+                }
+            }
+        }
+    }
+
+    private func startStallDetection() {
+        lastWordIndex = speechEngine.currentWordIndex
+        resetStallTimer()
+    }
+
+    private func resetStallTimer() {
+        stallTimer?.invalidate()
+        stallTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+            guard useSpeechFollow, practiceSession.isActive else { return }
+            if speechEngine.currentWordIndex == lastWordIndex &&
+               (speechEngine.state == .following || speechEngine.state == .lowConfidence) {
+                triggerAutoStumble()
+            }
+            // Restart stall detection
+            resetStallTimer()
+        }
+    }
+
+    private func triggerAutoStumble() {
+        let line = practiceSession.currentLineIndex
+        practiceSession.autoMarkStumble(atLine: line)
+        SSHaptics.medium()
+
+        // Flash the line red briefly
+        withAnimation(SSAnimation.standard) {
+            autoStumbleFlashLine = line
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            withAnimation(SSAnimation.standard) {
+                autoStumbleFlashLine = nil
+            }
+        }
     }
 }
