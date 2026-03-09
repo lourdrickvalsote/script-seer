@@ -47,10 +47,11 @@ struct CameraRecordView: View {
             }
 
             // Controls
-            VStack {
-                // Top bar: timer + take counter
+            VStack(spacing: 0) {
+                // Top bar: timer + take counter (below script overlay)
                 if cameraService.recordingState == .recording || cameraService.recordingState == .paused {
                     topRecordingBar
+                        .padding(.top, 70)
                 }
 
                 Spacer()
@@ -130,34 +131,36 @@ struct CameraRecordView: View {
             }
         }
         .padding(.horizontal, SSSpacing.md)
-        .padding(.top, 60)
     }
 
     // MARK: - Script Overlay
 
     private var scriptOverlay: some View {
         VStack {
-            // Positioned near top for front camera eye contact
+            // Compact text box right below the Dynamic Island
             Text(currentText)
-                .font(SSTypography.promptText(size: 22))
+                .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 2)
+                .shadow(color: .black.opacity(0.9), radius: 3, x: 0, y: 1)
                 .multilineTextAlignment(.center)
-                .lineSpacing(8)
-                .padding(.horizontal, SSSpacing.lg)
-                .padding(.vertical, SSSpacing.sm)
-                .background(
-                    RoundedRectangle(cornerRadius: SSRadius.md)
-                        .fill(.black.opacity(0.5))
-                )
-                .padding(.top, cameraService.recordingState == .recording || cameraService.recordingState == .paused ? 100 : 60)
+                .lineSpacing(6)
+                .lineLimit(3)
+                .minimumScaleFactor(0.8)
                 .padding(.horizontal, SSSpacing.md)
+                .padding(.vertical, SSSpacing.sm)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: SSRadius.sm)
+                        .fill(.black.opacity(0.55))
+                )
+                .padding(.horizontal, SSSpacing.sm)
 
             Spacer()
         }
     }
 
     private var currentText: String {
+        // Show only 2 lines at a time for a compact overlay
         let lines = script.content.components(separatedBy: .newlines).filter { !$0.isEmpty }
         let totalOffset = promptSession.scrollOffset
         let lineIndex = min(Int(totalOffset / 60), max(lines.count - 1, 0))
